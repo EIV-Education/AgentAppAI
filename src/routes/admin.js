@@ -63,6 +63,11 @@ export function adminRoutes({ hub }) {
         zaloOwners: config.zalo.ownerIds.length,
         ai: !!hub.llm,
       },
+      setup: {
+        publicUrl: config.publicUrl,
+        fbVerifyToken: config.facebook.verifyToken,
+        larkChats: config.lark.ownerChatIds.length,
+      },
     };
   }));
 

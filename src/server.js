@@ -38,6 +38,14 @@ export function createApp({ store, llm, channels, notifier } = {}) {
   }, webchatRoutes({ hub }));
   app.use('/api/admin', adminRoutes({ hub }));
   app.get('/healthz', (req, res) => res.json({ ok: true }));
+  app.get(['/', '/index.html'], (req, res) => {
+    let html = fs.readFileSync(path.join(ROOT, 'public', 'index.html'), 'utf8');
+    if (config.zalo.siteVerification) {
+      const code = config.zalo.siteVerification.replace(/[^a-zA-Z0-9_-]/g, '');
+      html = html.replace('<head>', `<head>\n<meta name="zalo-platform-site-verification" content="${code}" />`);
+    }
+    res.type('html').send(html);
+  });
   app.use(express.static(path.join(ROOT, 'public')));
 
   return { app, hub, store };

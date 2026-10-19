@@ -22,9 +22,14 @@ export function parseWebhook(body) {
 }
 
 export function createZalo(store) {
+  // Token mới nhất (sau khi tự làm mới) lưu trong db; khi anh dán token khác vào .env thì dùng token .env
   const tokens = () => {
-    store.data.integrations.zalo ||= { accessToken: config.zalo.accessToken, refreshToken: config.zalo.refreshToken };
-    return store.data.integrations.zalo;
+    const t = (store.data.integrations.zalo ||= {});
+    if (config.zalo.accessToken && t.seededFrom !== config.zalo.accessToken) {
+      Object.assign(t, { accessToken: config.zalo.accessToken, refreshToken: config.zalo.refreshToken, seededFrom: config.zalo.accessToken });
+      store.save();
+    }
+    return t;
   };
 
   async function refresh() {

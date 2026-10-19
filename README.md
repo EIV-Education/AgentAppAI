@@ -36,6 +36,8 @@ Chưa có `ANTHROPIC_API_KEY` thì hệ thống vẫn chạy, nhưng mọi tin n
 
 ## Kết nối từng kênh ra sao?
 
+> 👉 Hướng dẫn từng bước đưa lên server (Railway) và nối Lark, Zalo, Facebook: **[docs/HUONG-DAN-KET-NOI.md](docs/HUONG-DAN-KET-NOI.md)**
+
 Server phải có địa chỉ HTTPS công khai (`PUBLIC_URL`). Khi chạy thử có thể dùng ngrok hoặc Cloudflare Tunnel.
 
 ### Facebook Messenger kết nối thế nào?

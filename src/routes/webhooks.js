@@ -20,7 +20,10 @@ export function webhookRoutes({ hub, zalo, lark, facebook }) {
   });
 
   r.post('/facebook', (req, res) => {
-    if (!fb.verifySignature(req.rawBody, req.get('x-hub-signature-256'))) return res.sendStatus(401);
+    if (!fb.verifySignature(req.rawBody, req.get('x-hub-signature-256'))) {
+      console.warn('[facebook] sai chữ ký webhook — kiểm tra FB_APP_SECRET');
+      return res.sendStatus(401);
+    }
     res.sendStatus(200);
     for (const m of fb.parseWebhook(req.body)) {
       (async () => {
@@ -33,7 +36,10 @@ export function webhookRoutes({ hub, zalo, lark, facebook }) {
 
   // ---- Zalo OA ----
   r.post('/zalo', (req, res) => {
-    if (!zl.verifySignature(req.rawBody?.toString('utf8'), req.get('x-zevent-signature'), req.body)) return res.sendStatus(401);
+    if (!zl.verifySignature(req.rawBody?.toString('utf8'), req.get('x-zevent-signature'), req.body)) {
+      console.warn('[zalo] sai chữ ký webhook — kiểm tra ZALO_APP_ID, ZALO_OA_SECRET_KEY');
+      return res.sendStatus(401);
+    }
     res.sendStatus(200);
     for (const m of zl.parseWebhook(req.body)) {
       (async () => {
@@ -51,7 +57,10 @@ export function webhookRoutes({ hub, zalo, lark, facebook }) {
   // ---- Lark (kênh điều khiển) ----
   r.post('/lark', (req, res) => {
     const ev = parseLark(req.body);
-    if (config.lark.verificationToken && ev.token !== config.lark.verificationToken) return res.sendStatus(401);
+    if (config.lark.verificationToken && ev.token !== config.lark.verificationToken) {
+      console.warn('[lark] sai Verification Token — kiểm tra LARK_VERIFICATION_TOKEN, và tắt Encrypt Key');
+      return res.sendStatus(401);
+    }
     if (ev.challenge) return res.json({ challenge: ev.challenge });
     res.json({ ok: true });
     if (ev.ignore || !ev.text) return;

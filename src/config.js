@@ -15,7 +15,7 @@ if (fs.existsSync(envFile)) {
   }
 }
 
-const env = (k, d = '') => process.env[k] ?? d;
+const env = (k, d = '') => process.env[k] || d; // biến để trống trong .env = dùng mặc định
 const list = (k) => env(k).split(',').map((s) => s.trim()).filter(Boolean);
 
 export const config = {
@@ -44,6 +44,8 @@ export const config = {
     accessToken: env('ZALO_OA_ACCESS_TOKEN'),
     refreshToken: env('ZALO_OA_REFRESH_TOKEN'),
     ownerIds: list('ZALO_OWNER_IDS'),
+    // Mã xác thực domain (thẻ meta zalo-platform-site-verification) khi khai báo webhook
+    siteVerification: env('ZALO_SITE_VERIFICATION'),
   },
 
   lark: {

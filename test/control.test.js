@@ -87,3 +87,19 @@ test('nhập CSV catalog có biến thể và thuộc tính', () => {
   assert.deepEqual(rows[0].variants[1], { name: 'M', stock: '2', price: '120000' });
   assert.equal(rows[0].attributes['Chất liệu'], 'Cotton');
 });
+
+test('Zalo: token trong .env được dùng kể cả khi db đã lưu token cũ', async () => {
+  const { config } = await import('../src/config.js');
+  const { createZalo } = await import('../src/channels/zalo.js');
+  const { Store } = await import('../src/db.js');
+  const store = new Store(':memory:');
+  store.data.integrations.zalo = { accessToken: '', refreshToken: '' };
+  const old = config.zalo.accessToken;
+  config.zalo.accessToken = 'tok-env';
+  try {
+    assert.equal(createZalo(store).enabled(), true);
+    store.data.integrations.zalo.accessToken = 'tok-refreshed'; // sau khi tự làm mới
+    assert.equal(createZalo(store).enabled(), true);
+    assert.equal(store.data.integrations.zalo.accessToken, 'tok-refreshed');
+  } finally { config.zalo.accessToken = old; }
+});
