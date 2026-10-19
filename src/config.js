@@ -20,6 +20,7 @@ const list = (k) => env(k).split(',').map((s) => s.trim()).filter(Boolean);
 
 export const config = {
   port: Number(env('PORT', '3000')),
+  host: env('HOST', '0.0.0.0'), // trên VPS sau nginx: 127.0.0.1
   publicUrl: env('PUBLIC_URL', 'http://localhost:3000'),
   adminToken: env('ADMIN_TOKEN', 'doi-mat-khau-nay'),
   dataFile: env('DATA_FILE', path.join(ROOT, 'data', 'db.json')),

@@ -70,7 +70,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === path.join(ROOT, 'src', 
   if (config.adminToken === 'doi-mat-khau-nay') console.warn('⚠️  Đang dùng ADMIN_TOKEN mặc định — hãy đổi trong .env trước khi đưa lên mạng.');
 
   const { app, hub } = createApp({ store, llm });
-  app.listen(config.port, () => {
+  app.listen(config.port, config.host, () => {
     console.log(`Trợ lý bán hàng chạy tại ${config.publicUrl} (cổng ${config.port})`);
     console.log(`Dashboard: ${config.publicUrl}/  •  Demo web chat: ${config.publicUrl}/demo.html`);
   });

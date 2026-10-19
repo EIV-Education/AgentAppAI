@@ -32,6 +32,52 @@ Từ đây, **mỗi lần thêm hoặc sửa biến trong *Variables*, Railway t
 
 ---
 
+## Bước 1 (cách khác): Chạy trên VPS riêng (khoảng 20 phút)
+
+Dùng cách này nếu anh đã có VPS hoặc muốn đặt server ở Việt Nam (Viettel, VNPT, BizFly, Vietnix…). Bỏ qua cách này nếu đã chọn Railway.
+
+**Cần chuẩn bị:**
+- VPS chạy **Ubuntu 22.04 hoặc 24.04**, cấu hình tối thiểu **1 CPU, 1 GB RAM**. Trợ lý gọi Claude qua mạng nên máy không cần mạnh.
+- Một **tên miền hoặc tên miền phụ** (ví dụ `shopai.eiv.edu.vn`). Vào trang quản lý DNS, tạo **bản ghi A** trỏ tên miền đó về IP của VPS. Bắt buộc phải có, vì Facebook và Zalo chỉ gửi tin tới địa chỉ HTTPS.
+
+**Các bước:**
+1. Đăng nhập VPS bằng SSH: `ssh root@IP-VPS` (Windows dùng PowerShell hoặc PuTTY).
+2. Tải mã nguồn về. Repo là riêng tư nên GitHub sẽ hỏi đăng nhập: nhập tên GitHub và **Personal Access Token** (tạo tại github.com → *Settings* → *Developer settings* → *Personal access tokens*, cấp quyền đọc repo).
+   ```bash
+   apt-get update && apt-get install -y git
+   git clone https://github.com/EIV-Education/AgentAppAI.git /opt/agentappai
+   cd /opt/agentappai
+   git checkout claude/keen-knuth-q76pj6
+   ```
+3. Chạy script cài đặt tự động. Thay tên miền và email bằng của anh:
+   ```bash
+   sudo bash deploy/setup-vps.sh shopai.eiv.edu.vn admin@eiv.edu.vn
+   ```
+   Script làm toàn bộ những việc sau:
+   - Kiểm tra tên miền đã trỏ đúng về VPS chưa.
+   - Cài Node.js 22 và nginx.
+   - Tạo file `.env` kèm **mật khẩu dashboard ngẫu nhiên**. Mật khẩu in ra màn hình, anh **ghi lại**.
+   - Cài trợ lý thành dịch vụ tự chạy lại khi lỗi hoặc khi VPS khởi động lại.
+   - Lấy chứng chỉ HTTPS miễn phí, tự gia hạn.
+4. Điền khoá Claude: `nano /opt/agentappai/.env` → sửa dòng `ANTHROPIC_API_KEY=` → `Ctrl+O`, `Enter`, `Ctrl+X` → khởi động lại:
+   ```bash
+   sudo systemctl restart agentappai
+   ```
+5. Mở `https://ten-mien-cua-anh` và đăng nhập bằng mật khẩu ở bước 3.
+
+**Trên VPS, các bước nối kênh phía dưới làm thế nào?** Chỗ nào ghi "thêm biến trong *Variables* của Railway" thì anh làm thay bằng: sửa file `.env` bằng lệnh `nano /opt/agentappai/.env`, rồi chạy `sudo systemctl restart agentappai`. Chỗ nào ghi "xem *View logs*" thì dùng lệnh `sudo journalctl -u agentappai -f`.
+
+**Các lệnh hay dùng:**
+
+| Việc | Lệnh |
+|---|---|
+| Xem log trực tiếp | `sudo journalctl -u agentappai -f` |
+| Khởi động lại | `sudo systemctl restart agentappai` |
+| Cập nhật code mới (tự sao lưu dữ liệu trước) | `sudo bash /opt/agentappai/deploy/update.sh` |
+| Sao lưu tự động lúc 2 giờ sáng mỗi ngày | `(crontab -l 2>/dev/null; echo "0 2 * * * bash /opt/agentappai/deploy/backup.sh") \| crontab -` |
+
+---
+
 ## Bước 2: Nối Lark để điều khiển (khoảng 15 phút)
 
 1. Vào **open.larksuite.com/app** (Feishu thì vào open.feishu.cn và đặt thêm biến `LARK_DOMAIN=https://open.feishu.cn`) → *Create Custom App*.
