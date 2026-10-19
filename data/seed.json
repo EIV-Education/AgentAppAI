@@ -1,0 +1,35 @@
+{
+  "_note": "Dữ liệu MẪU để chạy thử. Thay bằng catalog và chính sách thật của shop trong dashboard (tab Catalog, Cài đặt).",
+  "settings": {
+    "shop": {
+      "name": "Shop Mẫu Thời Trang",
+      "description": "Thời trang cơ bản nam nữ, chất liệu cotton.",
+      "hotline": "0900 000 000",
+      "workingHours": "8:00 - 21:00 hằng ngày"
+    },
+    "policies": {
+      "shipping": "Giao toàn quốc qua GHN/GHTK. Nội thành Hà Nội và TP.HCM 1-2 ngày, tỉnh khác 2-4 ngày. Miễn phí ship cho đơn từ 500.000đ. Được kiểm tra hàng trước khi nhận.",
+      "returns": "Đổi size/màu miễn phí trong 7 ngày kể từ khi nhận hàng, sản phẩm còn tem mác, chưa giặt. Hoàn tiền 100% nếu lỗi do nhà sản xuất. Không đổi trả hàng giảm giá trên 50%.",
+      "payment": "Thanh toán khi nhận hàng (COD) hoặc chuyển khoản. Shop gửi số tài khoản sau khi xác nhận đơn.",
+      "warranty": "Không áp dụng bảo hành; lỗi sản xuất được đổi mới trong 7 ngày."
+    },
+    "shippingRules": {
+      "freeShipThreshold": 500000,
+      "zones": [
+        { "name": "Nội thành HN/HCM", "provinces": ["Hà Nội", "Hồ Chí Minh", "HCM", "Sài Gòn"], "fee": 20000, "days": "1-2 ngày" },
+        { "name": "Tỉnh khác", "provinces": [], "fee": 35000, "days": "2-4 ngày" }
+      ]
+    }
+  },
+  "products": [
+    { "id": "AT01", "name": "Áo thun nam cổ tròn Basic", "category": "Áo nam", "price": 199000, "description": "Cotton 100% định lượng 220gsm, form regular, không xù lông.", "attributes": { "Chất liệu": "Cotton 100%", "Form": "Regular" }, "tags": ["áo phông", "basic"], "variants": [ { "name": "Trắng-M", "stock": 12 }, { "name": "Trắng-L", "stock": 8 }, { "name": "Đen-M", "stock": 0 }, { "name": "Đen-L", "stock": 5 } ] },
+    { "id": "AT02", "name": "Áo polo nam Pique", "category": "Áo nam", "price": 289000, "salePrice": 249000, "description": "Vải cá sấu pique, thoáng mát, cổ bo dệt.", "attributes": { "Chất liệu": "Cotton pha 5% spandex" }, "tags": ["polo", "công sở"], "variants": [ { "name": "Navy-M", "stock": 6 }, { "name": "Navy-L", "stock": 4 }, { "name": "Xám-L", "stock": 3 } ] },
+    { "id": "QJ01", "name": "Quần jean nam Slim fit", "category": "Quần nam", "price": 459000, "description": "Denim co giãn nhẹ, wash xanh đậm.", "attributes": { "Chất liệu": "Denim 98% cotton, 2% spandex" }, "variants": [ { "name": "29", "stock": 3 }, { "name": "30", "stock": 5 }, { "name": "31", "stock": 4 }, { "name": "32", "stock": 2 } ] },
+    { "id": "VD01", "name": "Váy liền nữ cổ vuông", "category": "Váy nữ", "price": 389000, "description": "Vải đũi mềm, dáng xoè dài qua gối.", "attributes": { "Chất liệu": "Đũi" }, "tags": ["đầm", "dạo phố"], "variants": [ { "name": "Be-S", "stock": 4 }, { "name": "Be-M", "stock": 6 }, { "name": "Xanh-M", "stock": 2 } ] },
+    { "id": "AN01", "name": "Áo sơ mi nữ lụa", "category": "Áo nữ", "price": 329000, "description": "Lụa mềm, không nhăn, phù hợp công sở.", "variants": [ { "name": "Trắng-S", "stock": 5 }, { "name": "Trắng-M", "stock": 7 } ] },
+    { "id": "PK01", "name": "Tất cổ ngắn (combo 5 đôi)", "category": "Phụ kiện", "price": 89000, "stock": 40, "description": "Cotton kháng khuẩn, freesize 38-43." }
+  ],
+  "knowledge": [
+    { "question": "Cách chọn size áo thun nam", "answer": "Size M cho người 55-65kg cao 1m60-1m70; size L cho 65-75kg cao 1m70-1m78. Thích mặc rộng thì lên 1 size.", "status": "approved", "source": "seed" }
+  ]
+}

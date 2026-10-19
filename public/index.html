@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Trợ lý bán hàng</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<div id="login" class="login hidden">
+  <form id="loginForm" class="card">
+    <h1>Trợ lý bán hàng đa kênh</h1>
+    <p class="muted">Nhập mã quản trị (ADMIN_TOKEN) để vào dashboard.</p>
+    <input id="tokenInput" type="password" placeholder="Mã quản trị" autocomplete="current-password" required>
+    <button class="primary" type="submit">Đăng nhập</button>
+  </form>
+</div>
+
+<div id="app" class="hidden">
+  <header class="topbar">
+    <strong>🛍️ Trợ lý bán hàng</strong>
+    <nav id="tabs">
+      <button data-tab="inbox" class="active">Hội thoại <span id="badgeHuman" class="badge hidden"></span></button>
+      <button data-tab="orders">Đơn nháp <span id="badgeOrders" class="badge hidden"></span></button>
+      <button data-tab="products">Catalog</button>
+      <button data-tab="knowledge">Kiến thức <span id="badgeKnow" class="badge hidden"></span></button>
+      <button data-tab="lessons">Bài học</button>
+      <button data-tab="settings">Cài đặt</button>
+    </nav>
+    <button id="pauseBtn" class="pause"></button>
+  </header>
+
+  <section id="stats" class="stats"></section>
+
+  <main>
+    <!-- HỘI THOẠI -->
+    <section data-view="inbox" class="inbox">
+      <aside class="convList">
+        <div class="filters">
+          <select id="fChannel"><option value="">Mọi kênh</option><option value="facebook">Facebook</option><option value="zalo">Zalo</option><option value="web">Web</option></select>
+          <select id="fFilter"><option value="">Tất cả</option><option value="needsHuman">Chờ người</option><option value="lowScore">Điểm thấp</option><option value="ungraded">Chưa chấm</option></select>
+        </div>
+        <ul id="convs"></ul>
+      </aside>
+      <div class="convDetail" id="convDetail"><p class="muted center">Chọn một hội thoại</p></div>
+    </section>
+
+    <!-- ĐƠN NHÁP -->
+    <section data-view="orders" class="hidden">
+      <div class="row"><select id="oStatus"><option value="pending">Chờ duyệt</option><option value="confirmed">Đã duyệt</option><option value="cancelled">Đã huỷ</option><option value="">Tất cả</option></select></div>
+      <div id="orders" class="grid"></div>
+    </section>
+
+    <!-- CATALOG -->
+    <section data-view="products" class="hidden">
+      <div class="row">
+        <button class="primary" id="newProduct">+ Thêm sản phẩm</button>
+        <label class="btn">Nhập CSV <input type="file" id="csvFile" accept=".csv,text/csv" hidden></label>
+        <span class="muted small">Cột: id,name,category,price,salePrice,stock,description,tags,variants (vd "S:10;M:5:259000"), attr:Chất liệu…</span>
+      </div>
+      <table class="table"><thead><tr><th>Mã</th><th>Tên</th><th>Danh mục</th><th>Giá</th><th>Tồn</th><th>Biến thể</th><th></th></tr></thead><tbody id="products"></tbody></table>
+    </section>
+
+    <!-- KIẾN THỨC -->
+    <section data-view="knowledge" class="hidden">
+      <p class="muted">Trợ lý tự học từ câu trả lời của bạn và tự gom câu hỏi nó chưa trả lời được. Điền đáp án và duyệt để trợ lý dùng.</p>
+      <div class="row"><select id="kStatus"><option value="todo">Cần xử lý</option><option value="approved">Đang dùng</option><option value="">Tất cả</option></select><button class="primary" id="newKnow">+ Thêm kiến thức</button><button id="runLearning">Chạy tự học ngay</button></div>
+      <div id="knowledge" class="list"></div>
+    </section>
+
+    <!-- BÀI HỌC -->
+    <section data-view="lessons" class="hidden">
+      <p class="muted">Bài học là quy tắc ứng xử đưa thẳng vào hướng dẫn của trợ lý. Thêm bằng nút "Dạy" trong hội thoại, lệnh /day trên Zalo/Lark, hoặc tại đây.</p>
+      <form id="lessonForm" class="row"><input id="lessonText" placeholder="VD: Khi khách hỏi size, luôn hỏi chiều cao cân nặng trước" required><button class="primary">Thêm</button></form>
+      <div id="lessons" class="list"></div>
+    </section>
+
+    <!-- CÀI ĐẶT -->
+    <section data-view="settings" class="hidden">
+      <form id="settingsForm" class="settings"></form>
+      <div class="card">
+        <h3>Lệnh nhanh (giống trên Zalo/Lark)</h3>
+        <form id="cmdForm" class="row"><input id="cmdText" placeholder="/help"><button>Chạy</button></form>
+        <pre id="cmdOut" class="muted"></pre>
+      </div>
+      <div class="card">
+        <h3>Gắn chat vào website</h3>
+        <pre id="embedCode"></pre>
+      </div>
+    </section>
+  </main>
+</div>
+
+<dialog id="dlg"><form method="dialog" id="dlgForm"></form></dialog>
+<div id="toast" class="toast hidden"></div>
+<script src="/app.js"></script>
+</body>
+</html>

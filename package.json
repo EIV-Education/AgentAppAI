@@ -1,0 +1,21 @@
+{
+  "name": "agentappai-sales-assistant",
+  "version": "1.0.0",
+  "description": "Trợ lý bán hàng AI đa kênh: Facebook Messenger, Zalo OA, web chat — điều khiển qua Zalo hoặc Lark",
+  "type": "module",
+  "main": "src/server.js",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "test": "node --test test/*.test.js"
+  },
+  "license": "UNLICENSED",
+  "private": true,
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.135.0",
+    "express": "^5.3.0"
+  }
+}
