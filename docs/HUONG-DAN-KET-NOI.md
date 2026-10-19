@@ -39,6 +39,12 @@ Dùng cách này nếu anh đã có VPS hoặc muốn đặt server ở Việt N
 **Cần chuẩn bị:**
 - VPS chạy **Ubuntu 22.04 hoặc 24.04**, cấu hình tối thiểu **1 CPU, 1 GB RAM**. Trợ lý gọi Claude qua mạng nên máy không cần mạnh.
 - Một **tên miền hoặc tên miền phụ** (ví dụ `shopai.eiv.edu.vn`). Vào trang quản lý DNS, tạo **bản ghi A** trỏ tên miền đó về IP của VPS. Bắt buộc phải có, vì Facebook và Zalo chỉ gửi tin tới địa chỉ HTTPS.
+- **VPS đang chạy website khác?** Vẫn dùng được. Chỉ cần đặt trợ lý ở **tên miền phụ riêng** (ví dụ `ai.eiv.edu.vn`), không dùng chung tên miền với website. Script sẽ không đụng tới website đang chạy:
+  - Giữ nguyên Node.js của hệ thống. Nếu bản có sẵn cũ hơn 20, script tải Node riêng chỉ cho trợ lý dùng.
+  - Tự chọn một cổng nội bộ còn trống (từ 3100 trở lên).
+  - Nếu máy dùng **control panel** (aaPanel, cPanel, DirectAdmin, CyberPanel, HestiaCP, Plesk) hoặc **Apache/LiteSpeed**: script không sửa web server, chỉ in hướng dẫn bật *Reverse Proxy* trong panel (khoảng 3 phút làm tay).
+  - Nếu máy dùng **nginx**: script chỉ thêm một file cấu hình riêng cho tên miền phụ. Cấu hình lỗi thì tự gỡ ra.
+  - Nên **sao lưu VPS (snapshot)** trước khi chạy cho chắc.
 
 **Các bước:**
 1. Đăng nhập VPS bằng SSH: `ssh root@IP-VPS` (Windows dùng PowerShell hoặc PuTTY).
@@ -55,7 +61,7 @@ Dùng cách này nếu anh đã có VPS hoặc muốn đặt server ở Việt N
    ```
    Script làm toàn bộ những việc sau:
    - Kiểm tra tên miền đã trỏ đúng về VPS chưa.
-   - Cài Node.js 22 và nginx.
+   - Cài Node.js 22 (nếu máy chưa có bản 20 trở lên) và cổng HTTPS (nginx).
    - Tạo file `.env` kèm **mật khẩu dashboard ngẫu nhiên**. Mật khẩu in ra màn hình, anh **ghi lại**.
    - Cài trợ lý thành dịch vụ tự chạy lại khi lỗi hoặc khi VPS khởi động lại.
    - Lấy chứng chỉ HTTPS miễn phí, tự gia hạn.

@@ -4,3 +4,5 @@ data/db.json
 data/db.json.tmp
 data/db.backup-*.json
 backups/
+.runtime/
+deploy/.node-bin
