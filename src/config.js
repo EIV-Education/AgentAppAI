@@ -32,10 +32,11 @@ export const config = {
   },
 
   facebook: {
-    pageToken: env('FB_PAGE_ACCESS_TOKEN'),
+    appId: env('FB_APP_ID'),
+    pageToken: env('FB_PAGE_ACCESS_TOKEN'), // cách cũ: một Trang; nhiều Trang thì dùng nút Kết nối Facebook
     appSecret: env('FB_APP_SECRET'),
     verifyToken: env('FB_VERIFY_TOKEN', 'eiv-verify'),
-    graphVersion: env('FB_GRAPH_VERSION', 'v21.0'),
+    graphVersion: env('FB_GRAPH_VERSION', 'v23.0'),
   },
 
   zalo: {

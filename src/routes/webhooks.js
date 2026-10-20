@@ -27,10 +27,23 @@ export function webhookRoutes({ hub, zalo, lark, facebook }) {
     res.sendStatus(200);
     for (const m of fb.parseWebhook(req.body)) {
       (async () => {
+        if (facebook.isActive && !facebook.isActive(m.pageId)) return; // Trang chưa bật trợ lý
         const known = hub.store.find('conversations', (c) => c.channel === 'facebook' && c.externalId === m.externalId)[0];
-        const name = known?.customerName || (facebook.enabled() ? await facebook.profileName(m.externalId) : null);
-        await hub.receive({ channel: 'facebook', ...m, customerName: name });
+        const name = known?.customerName || (facebook.enabled() ? await facebook.profileName(m.externalId, m.pageId) : null);
+        await hub.receive({ channel: 'facebook', ...m, customerName: name, pageName: facebook.pageName?.(m.pageId) || null });
       })().catch((err) => console.error('[facebook]', err));
+    }
+  });
+
+  // Facebook chuyển về đây sau khi chủ Trang đăng nhập và cho phép (Valid OAuth Redirect URI)
+  r.get('/facebook/oauth', async (req, res) => {
+    const page = (ok, msg) => res.status(ok ? 200 : 400).type('html').send(`<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Kết nối Facebook</title><body style="font:16px system-ui;max-width:560px;margin:60px auto;padding:0 16px"><h2>${ok ? '✅ Đã kết nối Facebook' : '❌ Chưa kết nối được'}</h2><p>${msg.replace(/</g, '&lt;')}</p><p><a href="/">Quay lại dashboard</a></p></body>`);
+    try {
+      const { count } = await facebook.handleCallback(req.query);
+      page(true, `Đã đọc ${count} Trang bạn quản lý. Quay lại dashboard → Cài đặt → Trang Facebook để bật trợ lý cho từng Trang.`);
+    } catch (err) {
+      console.warn('[facebook] kết nối lỗi:', err.message);
+      page(false, err.message);
     }
   });
 

@@ -16,19 +16,40 @@ async function boot(script = []) {
 const wait = (ms = 30) => new Promise((r) => setTimeout(r, ms));
 const post = (url, body, headers = {}) => fetch(url, { method: 'POST', headers: { 'content-type': 'application/json', ...headers }, body: JSON.stringify(body) });
 
-test('Facebook webhook: xác minh và nhận tin', async () => {
-  const t = await boot([text('Dạ chào anh')]);
+test('Facebook webhook: xác minh, chỉ nhận tin của Trang đã bật, trả lời đúng Trang', async () => {
+  const { createFacebook } = await import('../src/channels/facebook.js');
+  const store = seededStore();
+  store.data.integrations.facebook = { pages: {
+    P1: { id: 'P1', name: 'EIV for Kids', token: 'tokP1', enabled: true },
+    P2: { id: 'P2', name: 'Bếp Ăn Thiện Nguyện', token: 'tokP2', enabled: false },
+  } };
+  const facebook = createFacebook(store);
+  const sent = [];
+  facebook.send = async (psid, t, conv) => { sent.push({ psid, t, pageId: conv.pageId }); };
+  facebook.profileName = async () => 'Trần Thu Hà';
+  const llm = fakeLLM([text('Dạ chào chị')]);
+  const { app } = createApp({ store, llm, channels: { facebook }, notifier: null });
+  const server = app.listen(0);
+  await new Promise((r) => server.once('listening', r));
+  const base = `http://127.0.0.1:${server.address().port}`;
   try {
-    const v = await fetch(`${t.base}/webhooks/facebook?hub.mode=subscribe&hub.verify_token=${config.facebook.verifyToken}&hub.challenge=123`);
+    const v = await fetch(`${base}/webhooks/facebook?hub.mode=subscribe&hub.verify_token=${config.facebook.verifyToken}&hub.challenge=123`);
     assert.equal(await v.text(), '123');
-    assert.equal((await fetch(`${t.base}/webhooks/facebook?hub.mode=subscribe&hub.verify_token=sai&hub.challenge=1`)).status, 403);
-    const r = await post(`${t.base}/webhooks/facebook`, { object: 'page', entry: [{ messaging: [{ sender: { id: 'psid7' }, message: { mid: 'm1', text: 'hello' } }] }] });
+    assert.equal((await fetch(`${base}/webhooks/facebook?hub.mode=subscribe&hub.verify_token=sai&hub.challenge=1`)).status, 403);
+    // Trang chưa bật -> bỏ qua
+    await post(`${base}/webhooks/facebook`, { object: 'page', entry: [{ id: 'P2', messaging: [{ sender: { id: 'u9' }, recipient: { id: 'P2' }, message: { mid: 'm0', text: 'alo' } }] }] });
+    // Trang đã bật -> AI trả lời bằng token của Trang đó
+    const r = await post(`${base}/webhooks/facebook`, { object: 'page', entry: [{ id: 'P1', messaging: [{ sender: { id: 'psid7' }, recipient: { id: 'P1' }, message: { mid: 'm1', text: 'hello' } }] }] });
     assert.equal(r.status, 200);
     await wait();
-    const conv = t.store.find('conversations', (c) => c.externalId === 'psid7')[0];
-    assert.ok(conv);
-    assert.equal(t.store.find('messages', (m) => m.conversationId === conv.id && m.role === 'bot').length, 1);
-  } finally { t.close(); }
+    assert.equal(llm.calls.length, 1);
+    const conv = store.find('conversations', (c) => c.externalId === 'psid7')[0];
+    assert.equal(conv.pageName, 'EIV for Kids');
+    assert.equal(conv.customerName, 'Trần Thu Hà');
+    assert.deepEqual(sent, [{ psid: 'psid7', t: 'Dạ chào chị', pageId: 'P1' }]);
+    assert.match(llm.calls[0].system.map((b) => b.text).join('\n'), /Trang "EIV for Kids"/);
+    assert.equal(store.find('conversations', (c) => c.externalId === 'u9').length, 0);
+  } finally { server.close(); }
 });
 
 test('Zalo webhook: khách nhắn -> AI; chủ shop gõ lệnh -> điều khiển', async () => {

@@ -81,7 +81,7 @@ export function buildSystem(store, conversation) {
   return [
     { type: 'text', text: `${RULES[mode]}\n\n${STYLE[style]}` },
     { type: 'text', text: [shopBlock, playbook, exampleBlock, lessonBlock].filter(Boolean).join('\n\n'), cache_control: { type: 'ephemeral' } },
-  ].concat({ type: 'text', text: `Kênh hiện tại: ${CHANNEL_NAMES[conversation.channel] || conversation.channel}. Tên khách: ${conversation.customerName || 'chưa rõ'}.` });
+  ].concat({ type: 'text', text: `Kênh hiện tại: ${CHANNEL_NAMES[conversation.channel] || conversation.channel}${conversation.pageName ? ` — khách nhắn vào Trang "${conversation.pageName}" (gợi ý về nhu cầu của khách)` : ''}. Tên khách: ${conversation.customerName || 'chưa rõ'}.` });
 }
 
 // Chuyển lịch sử tin nhắn thành messages cho API: khách = user, bot/chủ shop = assistant.

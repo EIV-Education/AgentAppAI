@@ -5,7 +5,7 @@ import { config, ROOT } from './config.js';
 import { Store } from './db.js';
 import { createLLM } from './agent/llm.js';
 import { Hub } from './core/hub.js';
-import { facebook } from './channels/facebook.js';
+import { createFacebook } from './channels/facebook.js';
 import { createZalo } from './channels/zalo.js';
 import { lark } from './channels/lark.js';
 import { createNotifier } from './control/notifier.js';
@@ -18,6 +18,7 @@ import { createCrm } from './crm.js';
 export function createApp({ store, llm, channels, notifier, crm } = {}) {
   store ||= new Store(config.dataFile);
   const zalo = channels?.zalo || createZalo(store);
+  const facebook = channels?.facebook || createFacebook(store);
   const web = { name: 'web', enabled: () => true, async send() {} }; // widget tự lấy tin qua API
   const hub = new Hub({
     store,

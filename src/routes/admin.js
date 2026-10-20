@@ -199,6 +199,11 @@ export function adminRoutes({ hub }) {
     return { ok: true, zaloOwnerIds: [...cur] };
   }));
 
+  // ---- Trang Facebook ----
+  r.get('/facebook/connect', wrap((req, res) => res.redirect(hub.channels.facebook.authorizeUrl())));
+  r.get('/facebook/pages', wrap(() => (hub.channels.facebook.listPages ? hub.channels.facebook.listPages() : [])));
+  r.post('/facebook/pages/:id', wrap((req) => hub.channels.facebook.setPageEnabled(req.params.id, !!req.body.enabled)));
+
   // ---- kết nối Zalo OA (OAuth) ----
   r.get('/zalo/connect', wrap((req, res) => res.redirect(hub.channels.zalo.authorizeUrl())));
 

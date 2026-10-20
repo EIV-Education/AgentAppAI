@@ -90,7 +90,7 @@ async function loadConvs() {
   const list = await api(`/conversations?${q}`);
   $('#convs').innerHTML = list.map((c) => `
     <li data-id="${c.id}" class="${c.id === currentConv ? 'active' : ''}">
-      <div class="top"><span><span class="ch ${c.channel}">${CH[c.channel]}</span> <b>${esc(c.customerName || 'Khách')}</b> <span class="muted small">${c.id}</span></span><span class="muted small">${time(c.lastMessageAt)}</span></div>
+      <div class="top"><span><span class="ch ${c.channel}">${CH[c.channel]}</span> <b>${esc(c.customerName || 'Khách')}</b> <span class="muted small">${c.id}</span>${c.pageName ? ` <span class="muted small">· ${esc(c.pageName)}</span>` : ''}</span><span class="muted small">${time(c.lastMessageAt)}</span></div>
       <div class="last">${c.unread ? `<b>(${c.unread})</b> ` : ''}${esc(c.lastMessage || '')}</div>
       <div>${c.needsHuman ? '<span class="tag human">Cần bạn</span>' : ''}${c.handoverUntil && new Date(c.handoverUntil) > new Date() ? '<span class="tag">Bạn đang trả lời</span>' : ''}${scoreTag(c.grade)}${c.ownerRating ? `<span class="tag">⭐${c.ownerRating.rating}</span>` : ''}</div>
     </li>`).join('') || '<li class="muted">Chưa có hội thoại</li>';
@@ -181,7 +181,7 @@ async function loadLeads() {
   leads = await api(`/leads?status=${$('#lStatus').value}`);
   $('#leads').innerHTML = leads.map((l) => `
     <div class="card">
-      <div class="row"><b>${l.id}</b><span class="ch ${l.channel}">${CH[l.channel]}</span><span class="tag">${SEG[l.segment] || esc(l.segment)}</span><span class="muted small">${time(l.createdAt)}${l.conversationId ? ` · ${l.conversationId}` : ''}</span></div>
+      <div class="row"><b>${l.id}</b><span class="ch ${l.channel}">${CH[l.channel]}</span>${l.sourcePage ? `<span class="tag">${esc(l.sourcePage)}</span>` : ''}<span class="tag">${SEG[l.segment] || esc(l.segment)}</span><span class="muted small">${time(l.createdAt)}${l.conversationId ? ` · ${l.conversationId}` : ''}</span></div>
       ${l.organization ? `<div><b>🏫 ${esc(l.organization)}</b></div>` : ''}
       <div><b>${esc(l.contactName || 'Khách')}</b> – <a href="tel:${esc(l.phone)}">${esc(l.phone)}</a>${l.email ? ` – ${esc(l.email)}` : ''}</div>
       ${l.address || l.area ? `<div class="muted">Địa chỉ: ${esc([l.address, l.area].filter(Boolean).join(' – '))}</div>` : ''}
@@ -224,7 +224,7 @@ $('#pushAllLeads').onclick = run(async () => {
 });
 $('#exportLeads').onclick = run(async () => {
   const all = await api('/leads');
-  const cols = ['id', 'createdAt', 'status', 'segment', 'organization', 'contactName', 'phone', 'email', 'area', 'needs', 'note', 'channel', 'conversationId'];
+  const cols = ['id', 'createdAt', 'status', 'channel', 'sourcePage', 'segment', 'organization', 'contactName', 'phone', 'email', 'area', 'needs', 'note', 'channel', 'conversationId'];
   const cell = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
   const csv = '\uFEFF' + [cols.join(','), ...all.map((l) => cols.map((c) => cell(c === 'segment' ? SEG[l[c]] || l[c] : c === 'status' ? L_STATUS[l[c]] : l[c])).join(','))].join('\n');
   const a = document.createElement('a');
@@ -410,13 +410,17 @@ async function loadSettings() {
     ...zo.fromDashboard.map((id) => `<div class="row"><span>✅ ${esc(id)}</span><button class="danger" data-zremove="${esc(id)}">Bỏ quyền</button></div>`),
     ...zo.requests.map((q) => `<div class="row"><span>🙋 ${esc(q.id)}</span><span class="muted small">gõ "${esc(q.text)}" lúc ${time(q.at)}</span><button class="primary" data-zadd="${esc(q.id)}">Cấp quyền</button></div>`),
   ].join('') || '<p class="muted small">Chưa có ai. Dùng Zalo cá nhân nhắn /baocao cho OA, rồi tải lại trang này để cấp quyền.</p>';
+  $('#fbConnect').href = `/api/admin/facebook/connect?token=${encodeURIComponent(TOKEN)}`;
+  const fbPages = await api('/facebook/pages');
+  $('#fbPages').innerHTML = fbPages.map((p) => `<div class="row" style="margin:4px 0"><label class="small"><input type="checkbox" data-fbpage="${esc(p.id)}" ${p.enabled ? 'checked' : ''}> <b>${esc(p.name)}</b></label>${p.canMessage === false ? '<span class="tag">không có quyền nhắn tin</span>' : ''}<span class="muted small">${p.enabled ? '✅ trợ lý đang trực' : 'đang tắt'}</span></div>`).join('')
+    || '<p class="muted small">Chưa kết nối. Bấm nút trên để đọc danh sách Trang.</p>';
   $('#zaloConnect').href = `/api/admin/zalo/connect?token=${encodeURIComponent(TOKEN)}`;
   $('#embedCode').textContent = `<script src="${location.origin}/widget.js" defer></script>`;
   const o = await api('/overview');
   const ok = (on) => (on ? '✅ đã kết nối' : '⚪ chưa cấu hình');
   $('#setupInfo').textContent = [
     `Claude AI: ${ok(o.channels.ai)}`,
-    `Facebook: ${ok(o.channels.facebook)}\n  Callback URL: ${location.origin}/webhooks/facebook\n  Verify token: ${o.setup.fbVerifyToken}`,
+    `Facebook: ${ok(o.channels.facebook)}\n  Callback URL: ${location.origin}/webhooks/facebook\n  Verify token: ${o.setup.fbVerifyToken}\n  Valid OAuth Redirect URI: ${location.origin}/webhooks/facebook/oauth`,
     `Zalo OA: ${ok(o.channels.zalo)} · ${o.channels.zaloOwners} chủ shop điều khiển\n  Webhook URL: ${location.origin}/webhooks/zalo\n  Official Account Callback Url: ${location.origin}/webhooks/zalo/oauth`,
     `Lark: ${ok(o.channels.lark)}\n  Request URL: ${location.origin}/webhooks/lark`,
     o.setup.publicUrl !== location.origin ? `⚠️ PUBLIC_URL trong .env (${o.setup.publicUrl}) khác địa chỉ đang mở (${location.origin})` : '',
@@ -439,6 +443,15 @@ async function loadCrmFields(crm) {
   });
 }
 $('#crmLoad').onclick = run(async () => { $('#crmMap').innerHTML = '<p class="muted small">Đang đọc cột…</p>'; await loadCrmFields((await api('/settings')).crm); });
+$('#fbPages').onchange = run(async (e) => {
+  const id = e.target.dataset.fbpage;
+  if (!id) return;
+  e.target.disabled = true;
+  try {
+    await api(`/facebook/pages/${id}`, { method: 'POST', body: { enabled: e.target.checked } });
+    toast(e.target.checked ? '✅ Đã bật trợ lý cho Trang' : 'Đã tắt trợ lý cho Trang');
+  } catch (err) { e.target.checked = !e.target.checked; throw err; } finally { e.target.disabled = false; loadSettings(); }
+});
 $('#zaloOwners').onclick = run(async (e) => {
   const d = e.target.dataset;
   if (d.zadd) { await api('/zalo/owners', { method: 'POST', body: { id: d.zadd } }); toast('Đã cấp quyền. Nhắn /help cho OA để thử.'); loadSettings(); }

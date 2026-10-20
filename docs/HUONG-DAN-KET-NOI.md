@@ -150,21 +150,20 @@ Cần sẵn: một **Zalo Official Account** đã được duyệt, và tài kho
 
 ---
 
-## Bước 4: Nối Facebook Messenger (khoảng 30 phút cài đặt, cộng thời gian Meta duyệt)
+## Bước 4: Nối Facebook Messenger (nhiều Trang)
 
-1. Vào **developers.facebook.com** → *My Apps* → *Create App* → chọn use case **"Engage with customers on Messenger from Meta"** → gắn với Business Portfolio (Business Manager) của shop.
-2. *App settings* → *Basic*: chép **App Secret** → biến `FB_APP_SECRET`. Điền thêm *Privacy Policy URL* (trang chính sách bảo mật của website shop).
-3. *Messenger* → *Messenger API Settings*:
-   - **Generate access tokens** → *Connect* Fanpage → *Generate* → chép token → biến `FB_PAGE_ACCESS_TOKEN`. Đợi Railway khởi động lại xong.
-   - **Configure webhooks**: Callback URL `PUBLIC_URL/webhooks/facebook`, Verify token = `eiv-verify` (hoặc giá trị anh đặt trong `FB_VERIFY_TOKEN`) → *Verify and save*.
-   - Ở dòng Fanpage → *Add subscriptions* → tick **`messages`** và **`messaging_postbacks`**.
-4. **Thử ngay**: dùng chính tài khoản Facebook quản trị app, nhắn tin cho Fanpage. Trợ lý sẽ trả lời và hội thoại hiện trong dashboard (kênh FB).
-5. **Mở cho mọi khách**: lúc này app đang ở chế độ phát triển, chỉ người có vai trò trong app mới chat được. Muốn khách thật dùng:
-   - *App Review* → xin quyền **`pages_messaging`** (Advanced Access). Meta yêu cầu video quay màn hình demo trợ lý trả lời tin nhắn.
-   - Hoàn tất **xác minh doanh nghiệp** (Business Verification) nếu Meta yêu cầu.
-   - Duyệt xong → chuyển app sang **Live**. ⚠️ Thời gian duyệt tuỳ Meta, thường vài ngày.
-
----
+1. **developers.facebook.com** → *My Apps* → *Create App* → use case **"Engage with customers on Messenger from Meta"** (Messenger) → gắn với Business Portfolio của EIV.
+2. *App settings → Basic*: chép **App ID** và **App Secret**; điền *Privacy Policy URL* (trang chính sách bảo mật của website). Trong *App Domains* thêm `agentai.eiv.edu.vn`.
+3. Thêm sản phẩm **Facebook Login for Business** (hoặc *Facebook Login*) → *Settings* → **Valid OAuth Redirect URIs**: `https://agentai.eiv.edu.vn/webhooks/facebook/oauth` → lưu.
+4. *Messenger → Messenger API Settings* → **Configure webhooks**: Callback URL `https://agentai.eiv.edu.vn/webhooks/facebook`, Verify token `eiv-verify` → *Verify and save* → bật các trường **messages**, **messaging_postbacks**.
+5. Trên VPS (thay giá trị):
+   ```bash
+   sed -i 's|^FB_APP_ID=.*|FB_APP_ID=DAN_APP_ID|; s|^FB_APP_SECRET=.*|FB_APP_SECRET=DAN_APP_SECRET|' /opt/agentappai/.env && sudo systemctl restart agentappai
+   ```
+   (File `.env` cũ chưa có dòng `FB_APP_ID=` thì thêm: `echo "FB_APP_ID=DAN_APP_ID" >> /opt/agentappai/.env`.)
+6. Dashboard → **Cài đặt** → **Trang Facebook** → **🔗 Kết nối Facebook** → đăng nhập tài khoản quản trị Trang → **chọn các Trang** muốn cấp quyền → cho phép đủ quyền.
+7. Quay lại dashboard → tick **bật trợ lý** cho từng Trang muốn trực (Trang không liên quan như "Bếp Ăn Thiện Nguyện" để tắt).
+8. **Mở cho khách thật**: khi app còn ở chế độ phát triển, chỉ người có vai trò trong app nhắn được. Cần *App Review* các quyền **pages_messaging**, **pages_manage_metadata**, **pages_show_list**, **pages_read_engagement** (Advanced Access) + **xác minh doanh nghiệp**, rồi chuyển app sang **Live**. ⚠️ Thời gian duyệt tuỳ Meta.
 
 ## Bước 5: Gắn chat vào website (khoảng 2 phút)
 

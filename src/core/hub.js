@@ -69,9 +69,11 @@ export class Hub {
   }
 
   // ---- tin nhắn đến từ khách ----
-  async receive({ channel, externalId, text, customerName, messageId }) {
+  async receive({ channel, externalId, text, customerName, messageId, pageId, pageName }) {
     if (messageId && this.store.find('messages', (m) => m.externalMessageId === messageId).length) return null; // webhook gửi lặp
     const conv = this.getOrCreateConversation(channel, externalId, customerName);
+    if (pageId && conv.pageId !== pageId) this.store.update('conversations', conv.id, { pageId, pageName: pageName || null });
+    else if (pageName && !conv.pageName) this.store.update('conversations', conv.id, { pageName });
     this.addMessage(conv, 'customer', text, messageId ? { externalMessageId: messageId } : {});
     if (!this.aiActive(conv)) {
       if (this.store.settings.botPaused && !conv.pausedNoticeSent) {
@@ -105,7 +107,7 @@ export class Hub {
     const conv = this.store.get('conversations', convId);
     if (!this.aiActive(conv)) return { conversation: conv, replied: false };
     const channel = this.channels[conv.channel];
-    channel?.typing?.(conv.externalId);
+    channel?.typing?.(conv.externalId, conv);
 
     let result;
     try {
@@ -143,7 +145,7 @@ export class Hub {
     const channel = this.channels[conv.channel];
     if (!channel?.send) return;
     try {
-      await channel.send(conv.externalId, text);
+      await channel.send(conv.externalId, text, this.store.get('conversations', conv.id) || conv);
     } catch (err) {
       console.error(`[hub] gửi ${conv.channel} lỗi:`, err.message);
       await this.notify(`⚠️ Không gửi được tin cho khách [${conv.id}] qua ${CHANNEL_LABEL[conv.channel]}: ${err.message}`);

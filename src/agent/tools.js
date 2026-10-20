@@ -240,7 +240,8 @@ export async function runTool(name, input, ctx) {
         await ctx.hooks?.onLeadUpdate?.(updated);
         return { lead_id: existing.id, status: 'Đã cập nhật thông tin khách', instruction: 'Cảm ơn khách, không cần hỏi lại thông tin đã có.' };
       }
-      const lead = store.insert('leads', { status: 'new', conversationId: ctx.conversation.id, channel: ctx.conversation.channel, ...fields });
+      const conv = store.get('conversations', ctx.conversation.id) || ctx.conversation;
+      const lead = store.insert('leads', { status: 'new', conversationId: conv.id, channel: conv.channel, sourcePage: conv.pageName || '', ...fields });
       await ctx.hooks?.onLead?.(lead);
       return { lead_id: lead.id, status: 'Đã chuyển cho chuyên viên tư vấn', instruction: 'Xác nhận đã tiếp nhận, chuyên viên sẽ liên hệ sớm. Không hứa thời gian hay giá cụ thể.' };
     }
