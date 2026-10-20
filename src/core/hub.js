@@ -60,12 +60,18 @@ export class Hub {
     return all.slice(-config.historyLimit);
   }
 
+  // Lý do AI không trả lời hội thoại này (null = AI đang trực)
+  aiOffReason(conv) {
+    const LABEL = { facebook: 'Facebook', zalo: 'Zalo', web: 'Web' };
+    if (this.store.settings.botPaused) return 'Trợ lý đang TẠM DỪNG trên mọi kênh (nút trên cùng / lệnh /tieptuc để bật)';
+    if (conv.botEnabled === false) return 'AI bị tắt riêng cho hội thoại này';
+    if (this.store.settings.aiChannels?.[conv.channel] === false) return `AI đang tắt cho kênh ${LABEL[conv.channel] || conv.channel} (Cài đặt → "AI tự trả lời khách trên kênh")`;
+    if (conv.handoverUntil && new Date(conv.handoverUntil) > new Date()) return 'Nhân viên đang tiếp quản hội thoại này (bấm "Trả cho AI" để AI trả lời tiếp)';
+    return null;
+  }
+
   aiActive(conv) {
-    if (this.store.settings.botPaused) return false;
-    if (conv.botEnabled === false) return false;
-    if (this.store.settings.aiChannels?.[conv.channel] === false) return false;
-    if (conv.handoverUntil && new Date(conv.handoverUntil) > new Date()) return false;
-    return true;
+    return !this.aiOffReason(conv);
   }
 
   // ---- tin nhắn đến từ khách ----

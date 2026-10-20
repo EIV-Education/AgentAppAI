@@ -95,6 +95,7 @@ export function adminRoutes({ hub }) {
       messages: store.find('messages', (m) => m.conversationId === conv.id),
       orders: store.find('orders', (o) => o.conversationId === conv.id),
       aiActive: hub.aiActive(conv),
+      aiOffReason: hub.aiOffReason(conv),
     };
   }));
 
@@ -111,6 +112,14 @@ export function adminRoutes({ hub }) {
     const name = await ch.profileName(conv.externalId);
     if (!name) throw new Error(ch.lastProfileError?.() || 'Không lấy được tên từ nền tảng');
     return hub.setCustomerName(conv.id, name);
+  }));
+  // Cho AI trả lời ngay tin khách đang chờ (sau khi bật lại AI)
+  r.post('/conversations/:id/ai-reply', wrap(async (req) => {
+    const conv = must(store.get('conversations', req.params.id));
+    const reason = hub.aiOffReason(conv);
+    if (reason) throw new Error(reason);
+    const r = await hub.schedule(conv.id);
+    return { replied: !!r?.replied };
   }));
   r.post('/conversations/:id/resolve', wrap((req) => must(store.update('conversations', req.params.id, { needsHuman: false }))));
   r.post('/conversations/:id/grade', wrap(async (req) => {

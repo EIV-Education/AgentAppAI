@@ -148,3 +148,13 @@ test('/baocao ở chế độ khách tiềm năng không hiện dòng đơn nhá
   assert.doesNotMatch(r, /Đơn nháp/);
   assert.match(r, /Khách tiềm năng/);
 });
+
+test('dashboard nói rõ lý do AI không trả lời', async () => {
+  const { hub, store } = makeHub();
+  const conv = hub.getOrCreateConversation('facebook', 'p1', 'Van Anh');
+  assert.equal(hub.aiOffReason(conv), null);
+  store.updateSettings({ aiChannels: { facebook: false } });
+  assert.match(hub.aiOffReason(conv), /tắt cho kênh Facebook/);
+  store.updateSettings({ botPaused: true });
+  assert.match(hub.aiOffReason(conv), /TẠM DỪNG/);
+});

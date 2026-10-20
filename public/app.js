@@ -107,6 +107,7 @@ async function openConv(id) {
     <div class="convHead">
       <span class="title"><span class="ch ${c.channel}">${CH[c.channel]}</span> ${esc(c.customerName || 'Khách')} · ${c.id}</span>
       <span class="muted small">${d.aiActive ? '🤖 AI đang trả lời' : '🧑‍💼 AI đang im'}</span>
+      ${d.aiActive && d.messages.at(-1)?.role === 'customer' ? '<button id="btnAiReply">🤖 Để AI trả lời tin này</button>' : ''}
       ${c.channel !== 'web' && !c.customerName ? '<button id="btnName">↻ Lấy tên Zalo/FB</button>' : ''}
       <button id="btnHand">${d.aiActive ? 'Tiếp quản' : 'Trả cho AI'}</button>
       ${c.needsHuman ? '<button id="btnResolve">Đã xử lý</button>' : ''}
@@ -114,6 +115,7 @@ async function openConv(id) {
       <button id="btnRate">⭐ Chấm</button>
       <button id="btnTeach" class="primary">🎓 Dạy</button>
     </div>
+    ${d.aiOffReason ? `<div class="gradeBox">⏸ <b>AI không trả lời vì:</b> ${esc(d.aiOffReason)}</div>` : ''}
     ${c.needsHuman && c.escalation ? `<div class="gradeBox">🙋 <b>Cần bạn:</b> ${esc(c.escalation.question)}</div>` : ''}
     ${g ? `<div class="gradeBox"><b>Điểm ${g.score}/10</b> · chính xác ${g.accuracy} · hữu ích ${g.helpfulness} · giọng ${g.tone} · bán hàng ${g.sales} · tự nhiên ${g.naturalness ?? '–'}${g.hallucination ? ' · <b style="color:var(--bad)">CÓ BỊA</b>' : ''}<br>${esc(g.summary)}${g.issues.length ? `<ul>${g.issues.map((i) => `<li>${esc(i)}</li>`).join('')}</ul>` : ''}${g.betterReply ? `<div class="muted">Gợi ý: ${esc(g.betterReply)}</div>` : ''}</div>` : ''}
     ${d.orders.map((o) => `<div class="gradeBox">🛒 Đơn ${o.id} – ${vnd(o.total)} – <b>${o.status}</b></div>`).join('')}
@@ -124,6 +126,7 @@ async function openConv(id) {
     </form>`;
   $('#msgs').scrollTop = 1e9;
   $('#btnHand').onclick = run(async () => { await api(`/conversations/${id}/handover`, { method: 'POST', body: { on: d.aiActive } }); openConv(id); });
+  $('#btnAiReply')?.addEventListener('click', run(async () => { toast('AI đang soạn câu trả lời…'); await api(`/conversations/${id}/ai-reply`, { method: 'POST' }); openConv(id); }));
   $('#btnName')?.addEventListener('click', run(async () => { const r = await api(`/conversations/${id}/refresh-name`, { method: 'POST' }); toast(`Đã lấy tên: ${r.customerName}`); openConv(id); }));
   $('#btnResolve')?.addEventListener('click', run(async () => { await api(`/conversations/${id}/resolve`, { method: 'POST' }); openConv(id); refresh(); }));
   $('#btnGrade').onclick = run(async () => { toast('Đang chấm…'); await api(`/conversations/${id}/grade`, { method: 'POST' }); openConv(id); loadConvs(); });
