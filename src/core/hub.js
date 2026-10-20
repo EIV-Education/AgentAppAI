@@ -51,6 +51,7 @@ export class Hub {
   aiActive(conv) {
     if (this.store.settings.botPaused) return false;
     if (conv.botEnabled === false) return false;
+    if (this.store.settings.aiChannels?.[conv.channel] === false) return false;
     if (conv.handoverUntil && new Date(conv.handoverUntil) > new Date()) return false;
     return true;
   }

@@ -13,6 +13,8 @@ export function defaultSettings() {
     botPaused: false,
     // 'order': shop bán hàng (báo giá, đơn nháp, phí ship) · 'lead': thu thập nhu cầu + liên hệ, chuyển chuyên viên tư vấn
     salesMode: 'order',
+    // Bật/tắt AI tự trả lời theo từng kênh (tắt: tin vẫn lưu vào dashboard để người trả lời)
+    aiChannels: { facebook: true, zalo: true, web: true },
     shop: {
       name: 'Shop của bạn',
       description: '',

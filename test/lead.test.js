@@ -91,3 +91,15 @@ test('chế độ bán hàng vẫn giữ công cụ đơn nháp và có thêm cr
   const names = llm.calls[0].tools.map((t) => t.name);
   assert.ok(names.includes('create_draft_order') && names.includes('create_lead'));
 });
+
+test('tắt AI riêng kênh Zalo: tin vẫn lưu, AI không trả lời; lệnh chủ shop vẫn chạy', async () => {
+  const { hub, llm, store } = makeHub([text('web ok')]);
+  store.updateSettings({ aiChannels: { zalo: false } });
+  const r = await hub.receive({ channel: 'zalo', externalId: 'z1', text: 'alo' });
+  assert.equal(r.replied, false);
+  assert.equal(llm.calls.length, 0);
+  assert.equal(store.find('messages', (m) => m.conversationId === r.conversation.id).length, 1);
+  assert.match(await handleCommand(hub, '/baocao'), /Hôm nay/);
+  const w = await hub.receive({ channel: 'web', externalId: 'sessweb12345', text: 'hi' });
+  assert.equal(w.replied, true);
+});

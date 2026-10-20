@@ -315,6 +315,9 @@ async function loadSettings() {
         <option value="lead" ${s.salesMode === 'lead' ? 'selected' : ''}>Thu thập khách tiềm năng: không báo giá, xin SĐT/Zalo chuyển chuyên viên</option>
       </select></label>
       <label>Kịch bản tư vấn (các bước hỏi và mẫu câu trợ lý bám theo)<textarea name="shop.playbook" rows="12">${esc(s.shop.playbook)}</textarea></label>
+      <label>AI tự trả lời khách trên kênh:</label>
+      <div class="row">${['facebook', 'zalo', 'web'].map((ch) => `<label class="small"><input type="checkbox" name="aiChannels.${ch}" ${s.aiChannels?.[ch] !== false ? 'checked' : ''}> ${CH[ch]}</label>`).join('')}</div>
+      <p class="muted small">Bỏ tick một kênh: tin nhắn khách vẫn hiện trong Hội thoại để nhân viên trả lời, AI không tự trả lời. Lệnh điều khiển qua Zalo vẫn dùng được.</p>
       ${f('shop.greeting', 'Lời chào trên chat website', s.shop.greeting, 'textarea')}
       ${f('followUp.enabled', 'Nhắn nhắc khi khách im lặng (1 lần, chỉ khi khách chưa để lại SĐT)', s.followUp.enabled, 'checkbox')}
       ${f('followUp.afterMinutes', 'Nhắc sau (phút)', s.followUp.afterMinutes, 'number')}

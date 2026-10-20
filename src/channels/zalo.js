@@ -11,7 +11,9 @@ export function verifySignature(rawBody, header, body) {
   const mac = crypto.createHash('sha256')
     .update(`${config.zalo.appId}${rawBody}${body?.timestamp ?? ''}${config.zalo.oaSecretKey}`)
     .digest('hex');
-  return header.replace(/^mac=/, '') === mac;
+  const got = header.replace(/^mac=/, '');
+  if (got !== mac) console.warn(`[zalo] chữ ký nhận ${got.slice(0, 12)}… ≠ tính ra ${mac.slice(0, 12)}… (timestamp=${body?.timestamp})`);
+  return got === mac;
 }
 
 export function parseWebhook(body) {
