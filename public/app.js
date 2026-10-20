@@ -114,7 +114,7 @@ async function openConv(id) {
       <button id="btnTeach" class="primary">🎓 Dạy</button>
     </div>
     ${c.needsHuman && c.escalation ? `<div class="gradeBox">🙋 <b>Cần bạn:</b> ${esc(c.escalation.question)}</div>` : ''}
-    ${g ? `<div class="gradeBox"><b>Điểm ${g.score}/10</b> · chính xác ${g.accuracy} · hữu ích ${g.helpfulness} · giọng ${g.tone} · bán hàng ${g.sales}${g.hallucination ? ' · <b style="color:var(--bad)">CÓ BỊA</b>' : ''}<br>${esc(g.summary)}${g.issues.length ? `<ul>${g.issues.map((i) => `<li>${esc(i)}</li>`).join('')}</ul>` : ''}${g.betterReply ? `<div class="muted">Gợi ý: ${esc(g.betterReply)}</div>` : ''}</div>` : ''}
+    ${g ? `<div class="gradeBox"><b>Điểm ${g.score}/10</b> · chính xác ${g.accuracy} · hữu ích ${g.helpfulness} · giọng ${g.tone} · bán hàng ${g.sales} · tự nhiên ${g.naturalness ?? '–'}${g.hallucination ? ' · <b style="color:var(--bad)">CÓ BỊA</b>' : ''}<br>${esc(g.summary)}${g.issues.length ? `<ul>${g.issues.map((i) => `<li>${esc(i)}</li>`).join('')}</ul>` : ''}${g.betterReply ? `<div class="muted">Gợi ý: ${esc(g.betterReply)}</div>` : ''}</div>` : ''}
     ${d.orders.map((o) => `<div class="gradeBox">🛒 Đơn ${o.id} – ${vnd(o.total)} – <b>${o.status}</b></div>`).join('')}
     <div class="msgs" id="msgs">${d.messages.map(renderMsg).join('')}</div>
     <form class="composer" id="composer">
@@ -304,6 +304,39 @@ $('#lessons').onclick = run(async (e) => {
   if (d.del && confirm('Xoá bài học?')) { await api(`/lessons/${d.del}`, { method: 'DELETE' }); loadLessons(); }
 });
 
+// ---------- hội thoại mẫu ----------
+const EX_SRC = { human_chat: 'từ người thật trả lời', ai_chat: 'từ hội thoại AI tốt', transcript: 'từ đoạn chat dán vào', manual: 'tự thêm' };
+async function loadExamples() {
+  const list = await api('/examples');
+  $('#examples').innerHTML = list.slice().reverse().map((e) => `
+    <div class="card"><div class="row" style="margin:0"><b>${e.id}</b><span class="tag">${e.status === 'active' ? '✅ Đang học theo' : e.status === 'pending' ? '🕓 Chờ duyệt' : '⏸ Tắt'}</span><span class="muted small">${EX_SRC[e.source] || ''}${e.conversationId ? ` · ${e.conversationId}` : ''}${e.score ? ` · ${e.score}/10` : ''}</span></div>
+      <div><b>Khách:</b> ${esc(e.customer)}</div><div><b>Tư vấn viên:</b> ${esc(e.reply)}</div>
+      ${e.lesson ? `<div class="muted small">💡 ${esc(e.lesson)}</div>` : ''}
+      <div class="row" style="margin:0"><button data-extoggle="${e.id}" data-status="${e.status}">${e.status === 'active' ? 'Tắt' : 'Dùng mẫu này'}</button><button data-exedit="${e.id}">Sửa</button><button class="danger" data-exdel="${e.id}">Xoá</button></div></div>`).join('') || '<p class="muted">Chưa có mẫu. Trợ lý sẽ tự rút mẫu từ hội thoại tốt, hoặc anh dán đoạn chat thật ở trên.</p>';
+  $('#examples').dataset.list = JSON.stringify(list);
+}
+$('#examples').onclick = run(async (e) => {
+  const d = e.target.dataset;
+  const list = JSON.parse($('#examples').dataset.list || '[]');
+  if (d.extoggle) { await api(`/examples/${d.extoggle}`, { method: 'PUT', body: { status: d.status === 'active' ? 'off' : 'active' } }); loadExamples(); }
+  if (d.exdel && confirm('Xoá mẫu này?')) { await api(`/examples/${d.exdel}`, { method: 'DELETE' }); loadExamples(); }
+  if (d.exedit) {
+    const x = list.find((i) => i.id === d.exedit);
+    dialog(`Sửa ${x.id}`, [['customer', 'Khách nói', 'textarea', x.customer], ['reply', 'Tư vấn viên trả lời', 'textarea', x.reply]], run(async (v) => { await api(`/examples/${x.id}`, { method: 'PUT', body: v }); loadExamples(); }));
+  }
+});
+$('#newExample').onclick = () => dialog('Thêm hội thoại mẫu', [['customer', 'Khách nói', 'textarea'], ['reply', 'Câu trả lời hay mà anh muốn trợ lý học theo', 'textarea']], run(async (v) => { await api('/examples', { method: 'POST', body: v }); loadExamples(); }));
+$('#transcriptForm').onsubmit = run(async (e) => {
+  e.preventDefault();
+  const text = $('#transcriptText').value.trim();
+  if (!text) return;
+  toast('Đang phân tích đoạn chat…');
+  const r = await api('/learn/transcript', { method: 'POST', body: { text } });
+  toast(`Đã học: ${r.examples} hội thoại mẫu, ${r.lessons} nhận xét phong cách, ${r.knowledge} kiến thức (chờ duyệt ở tab Kiến thức)`);
+  $('#transcriptText').value = '';
+  loadExamples(); loadLessons();
+});
+
 // ---------- cài đặt ----------
 async function loadSettings() {
   const s = await api('/settings');
@@ -313,6 +346,10 @@ async function loadSettings() {
       <label>Chế độ<select name="salesMode">
         <option value="order" ${s.salesMode !== 'lead' ? 'selected' : ''}>Bán hàng: báo giá, lên đơn nháp, tính phí ship</option>
         <option value="lead" ${s.salesMode === 'lead' ? 'selected' : ''}>Thu thập khách tiềm năng: không báo giá, xin SĐT/Zalo chuyển chuyên viên</option>
+      </select></label>
+      <label>Cách nói chuyện<select name="replyStyle">
+        <option value="natural" ${s.replyStyle !== 'script' ? 'selected' : ''}>Tự nhiên như người thật: kịch bản chỉ để định hướng, tự diễn đạt, có thể nhắn nhiều tin ngắn</option>
+        <option value="script" ${s.replyStyle === 'script' ? 'selected' : ''}>Bám sát kịch bản: dùng đúng câu mẫu, hỏi gộp</option>
       </select></label>
       <label>Kịch bản tư vấn (các bước hỏi và mẫu câu trợ lý bám theo)<textarea name="shop.playbook" rows="12">${esc(s.shop.playbook)}</textarea></label>
       <label>AI tự trả lời khách trên kênh:</label>
@@ -334,6 +371,9 @@ async function loadSettings() {
       <label>Khu vực (JSON: name, provinces[], fee, days; khu vực có provinces rỗng = mặc định)<textarea name="shippingRules.zones" rows="6">${esc(JSON.stringify(s.shippingRules.zones, null, 1))}</textarea></label></fieldset>
     <fieldset><legend>Tự học & thông báo</legend>
       ${f('learning.autoGrade', 'Tự động chấm điểm hội thoại đã kết thúc', s.learning.autoGrade, 'checkbox')}
+      ${f('learning.autoLearnExamples', 'Tự học cách nói chuyện từ hội thoại tốt (điểm cao, được chấm 4-5 sao, hoặc có người thật trả lời)', s.learning.autoLearnExamples, 'checkbox')}
+      ${f('learning.autoApproveExamples', 'Dùng ngay hội thoại mẫu tự học (bỏ tick: chờ duyệt trong tab Bài học)', s.learning.autoApproveExamples, 'checkbox')}
+      ${f('learning.exampleMinScore', 'Điểm tối thiểu để học làm mẫu', s.learning.exampleMinScore, 'number')}
       ${f('learning.autoApproveKnowledge', 'Tự dùng kiến thức rút ra từ câu trả lời của bạn (không cần duyệt)', s.learning.autoApproveKnowledge, 'checkbox')}
       ${f('learning.lowScoreAlert', 'Báo tôi khi điểm dưới', s.learning.lowScoreAlert, 'number')}
       ${f('notifyOnNewLead', 'Báo khách tiềm năng mới qua Zalo/Lark', s.notifyOnNewLead, 'checkbox')}
@@ -400,7 +440,7 @@ function dialog(title, fields, onOk) {
 }
 
 // ---------- realtime ----------
-const loaders = { inbox: loadConvs, leads: loadLeads, orders: loadOrders, products: loadProducts, knowledge: loadKnowledge, lessons: loadLessons, settings: loadSettings };
+const loaders = { inbox: loadConvs, leads: loadLeads, orders: loadOrders, products: loadProducts, knowledge: loadKnowledge, lessons: () => { loadLessons(); loadExamples(); }, settings: loadSettings };
 function refresh() { loadOverview().catch(() => {}); if (currentTab === 'inbox') loadConvs().catch(() => {}); }
 
 function listen() {

@@ -14,6 +14,7 @@ const GRADE_SCHEMA = {
     helpfulness: { type: 'integer', description: '1-10: trả lời đúng trọng tâm, nhanh' },
     tone: { type: 'integer', description: '1-10: lịch sự, đúng giọng shop' },
     sales: { type: 'integer', description: '1-10: kỹ năng tư vấn, gợi ý, chốt đơn' },
+    naturalness: { type: 'integer', description: '1-10: tự nhiên như người thật nhắn tin, không máy móc, không lặp văn mẫu' },
     hallucination: { type: 'boolean', description: 'true nếu trợ lý nói thông tin không có trong kết quả công cụ' },
     summary: { type: 'string', description: 'Tóm tắt 1 câu khách cần gì và kết quả' },
     issues: { type: 'array', items: { type: 'string' } },
@@ -24,7 +25,7 @@ const GRADE_SCHEMA = {
       items: { type: 'string' },
     },
   },
-  required: ['score', 'accuracy', 'helpfulness', 'tone', 'sales', 'hallucination', 'summary', 'issues', 'better_reply', 'knowledge_gaps'],
+  required: ['score', 'accuracy', 'helpfulness', 'tone', 'sales', 'naturalness', 'hallucination', 'summary', 'issues', 'better_reply', 'knowledge_gaps'],
 };
 
 export function transcriptOf(store, conversationId) {
@@ -55,13 +56,21 @@ export async function gradeConversation({ llm, store, conversationId, hooks }) {
 
   const g = JSON.parse(textOf(response));
   const grade = {
-    score: clamp(g.score), accuracy: clamp(g.accuracy), helpfulness: clamp(g.helpfulness), tone: clamp(g.tone), sales: clamp(g.sales),
+    score: clamp(g.score), accuracy: clamp(g.accuracy), helpfulness: clamp(g.helpfulness), tone: clamp(g.tone), sales: clamp(g.sales), naturalness: clamp(g.naturalness),
     hallucination: !!g.hallucination, summary: g.summary, issues: g.issues || [], betterReply: g.better_reply || '',
     gradedAt: new Date().toISOString(), messageCount: store.find('messages', (m) => m.conversationId === conv.id).length,
   };
   store.update('conversations', conv.id, { grade });
 
   for (const q of g.knowledge_gaps || []) addKnowledgeGap(store, q, conv.id);
+
+  // Hội thoại tốt (hoặc có người thật trả lời) -> rút thành hội thoại mẫu để học cách nói chuyện
+  const L = store.settings.learning;
+  const hasHuman = store.find('messages', (m) => m.conversationId === conv.id && m.role === 'human').length > 0;
+  if (L.autoLearnExamples && !grade.hallucination && (grade.score >= L.exampleMinScore || hasHuman)) {
+    await learnExamplesFromConversation({ llm, store, conversationId: conv.id, score: grade.score })
+      .catch((err) => console.warn('[learning] rút hội thoại mẫu lỗi:', err.message));
+  }
 
   const threshold = store.settings.learning.lowScoreAlert;
   if (grade.score < threshold || grade.hallucination) await hooks?.onLowScore?.(conv, grade);
@@ -160,4 +169,108 @@ export async function runLearningCycle({ llm, store, hooks }) {
     }
   }
   return { graded };
+}
+
+// ---------- Học cách nói chuyện từ hội thoại ----------
+
+// Xoá thông tin cá nhân còn sót: số điện thoại, email
+export function scrub(text = '') {
+  return String(text)
+    .replace(/(\+?84|0)[\s.-]?\d{2,3}[\s.-]?\d{3}[\s.-]?\d{3,4}/g, '[SĐT]')
+    .replace(/[\w.+-]+@[\w-]+\.[\w.-]+/g, '[email]');
+}
+
+const EXAMPLES_SCHEMA = {
+  type: 'object',
+  additionalProperties: false,
+  properties: {
+    examples: {
+      type: 'array',
+      description: '0-2 lượt trao đổi đáng học nhất',
+      items: {
+        type: 'object',
+        additionalProperties: false,
+        properties: {
+          customer: { type: 'string', description: 'Tin của khách (có thể gộp 1-2 tin liên tiếp)' },
+          reply: { type: 'string', description: 'Câu trả lời của tư vấn viên, giữ nguyên cách nói' },
+          lesson: { type: 'string', description: 'Một câu: vì sao câu trả lời này hay' },
+        },
+        required: ['customer', 'reply', 'lesson'],
+      },
+    },
+  },
+  required: ['examples'],
+};
+
+const EXAMPLE_RULES = 'Chọn những lượt trao đổi thể hiện cách tư vấn tự nhiên, khéo léo, đúng mực (đồng cảm, dẫn dắt hay, xử lý câu hỏi khó như hỏi giá). Bỏ qua lượt chào hỏi đơn giản hay câu trả lời máy móc. Xoá hết tên, SĐT, email, địa chỉ cụ thể của khách (thay bằng [tên], [SĐT]...). Giữ nguyên giọng văn của tư vấn viên. Nếu không có lượt nào đáng học thì trả về mảng rỗng.';
+
+function addExample(store, e, extra) {
+  const customer = scrub(e.customer).trim();
+  const reply = scrub(e.reply).trim();
+  if (!customer || !reply) return null;
+  const dup = store.find('examples', (x) => x.reply === reply)[0];
+  if (dup) return null;
+  const status = store.settings.learning.autoApproveExamples ? 'active' : 'pending';
+  return store.insert('examples', { customer, reply, lesson: e.lesson || '', status, ...extra });
+}
+
+export async function learnExamplesFromConversation({ llm, store, conversationId, score }) {
+  if (!llm) return [];
+  const msgs = store.find('messages', (m) => m.conversationId === conversationId);
+  const hasHuman = msgs.some((m) => m.role === 'human');
+  const transcript = msgs.filter((m) => m.role !== 'system')
+    .map((m) => `${m.role === 'customer' ? 'KHÁCH' : m.role === 'human' ? 'TƯ VẤN VIÊN (người thật)' : 'TƯ VẤN VIÊN (AI)'}: ${m.text}`)
+    .join('\n');
+  const response = await llm.create({
+    max_tokens: 3000,
+    system: `Bạn chọn hội thoại mẫu để dạy trợ lý tư vấn nói chuyện tự nhiên như người thật. ${EXAMPLE_RULES}${hasHuman ? ' Ưu tiên câu trả lời của TƯ VẤN VIÊN (người thật).' : ''}`,
+    messages: [{ role: 'user', content: transcript.slice(-12000) }],
+    output_config: { effort: 'low', format: { type: 'json_schema', schema: EXAMPLES_SCHEMA } },
+  });
+  if (response.stop_reason === 'refusal') return [];
+  const { examples = [] } = JSON.parse(textOf(response));
+  return examples.slice(0, 2)
+    .map((e) => addExample(store, e, { source: hasHuman ? 'human_chat' : 'ai_chat', fromHuman: hasHuman, conversationId, score: score ?? null }))
+    .filter(Boolean);
+}
+
+const TRANSCRIPT_SCHEMA = {
+  type: 'object',
+  additionalProperties: false,
+  properties: {
+    examples: EXAMPLES_SCHEMA.properties.examples,
+    style_notes: { type: 'array', description: 'Tối đa 5 nhận xét về phong cách nói chuyện đáng học, dạng mệnh lệnh ngắn', items: { type: 'string' } },
+    knowledge: {
+      type: 'array',
+      description: 'Thông tin về dịch vụ/chính sách mà tư vấn viên nói ra, dạng hỏi-đáp tổng quát',
+      items: {
+        type: 'object',
+        additionalProperties: false,
+        properties: { question: { type: 'string' }, answer: { type: 'string' } },
+        required: ['question', 'answer'],
+      },
+    },
+  },
+  required: ['examples', 'style_notes', 'knowledge'],
+};
+
+// Chủ shop dán đoạn chat thật giữa tư vấn viên và khách -> hội thoại mẫu + phong cách + kiến thức (chờ duyệt)
+export async function learnFromTranscript({ llm, store, text }) {
+  if (!llm) throw new Error('Chưa cấu hình ANTHROPIC_API_KEY');
+  if (String(text).trim().length < 40) throw new Error('Đoạn hội thoại quá ngắn');
+  const response = await llm.create({
+    max_tokens: 6000,
+    system: `Bạn phân tích đoạn chat thật giữa tư vấn viên và khách để dạy trợ lý AI. Chọn tối đa 4 lượt trao đổi mẫu. ${EXAMPLE_RULES} Rút thêm nhận xét phong cách và các thông tin dịch vụ mà tư vấn viên đã nói (không rút thông tin riêng của khách).`,
+    messages: [{ role: 'user', content: String(text).slice(0, 30000) }],
+    output_config: { effort: 'medium', format: { type: 'json_schema', schema: TRANSCRIPT_SCHEMA } },
+  });
+  if (response.stop_reason === 'refusal') throw new Error('AI không xử lý được đoạn hội thoại này');
+  const out = JSON.parse(textOf(response));
+  const examples = (out.examples || []).slice(0, 4)
+    .map((e) => addExample(store, e, { source: 'transcript', fromHuman: true, score: null })).filter(Boolean);
+  const lessons = (out.style_notes || []).slice(0, 5)
+    .map((t) => store.insert('lessons', { text: scrub(t), status: 'active', source: 'transcript' }));
+  const knowledge = (out.knowledge || [])
+    .map((k) => store.insert('knowledge', { question: scrub(k.question), answer: scrub(k.answer), status: 'pending', source: 'transcript' }));
+  return { examples: examples.length, lessons: lessons.length, knowledge: knowledge.length };
 }

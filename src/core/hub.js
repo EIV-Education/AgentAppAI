@@ -1,4 +1,4 @@
-import { generateReply } from '../agent/agent.js';
+import { generateReply, splitBubbles } from '../agent/agent.js';
 import { learnFromOwnerAnswer, gradeConversation } from '../agent/learning.js';
 import { config } from '../config.js';
 import { formatVnd } from '../catalog.js';
@@ -16,6 +16,7 @@ export class Hub {
     this.running = new Map(); // conversationId -> Promise (xử lý tuần tự từng hội thoại)
     this.pendingAgain = new Set();
     this.listeners = new Set();
+    this.bubbleDelayMs = 1200; // nghỉ giữa các tin khi trợ lý nhắn nhiều tin liên tiếp
   }
 
   // ---- hội thoại & tin nhắn ----
@@ -115,9 +116,16 @@ export class Hub {
     // Chủ shop có thể đã tiếp quản trong lúc AI đang nghĩ
     if (!this.aiActive(this.store.get('conversations', convId))) return { conversation: conv, replied: false };
 
-    const msg = this.addMessage(conv, 'bot', result.text, { trace: result.trace, escalated: !!result.escalated });
-    await this.deliver(conv, result.text);
-    return { conversation: conv, replied: true, message: msg, ...result };
+    // Nhắn thành nhiều tin ngắn liên tiếp như người thật
+    const parts = splitBubbles(result.text);
+    let msg;
+    for (const [i, part] of parts.entries()) {
+      if (i > 0) await new Promise((r) => setTimeout(r, Math.min(this.bubbleDelayMs, 300 + part.length * 15)));
+      const m = this.addMessage(conv, 'bot', part, i === 0 ? { trace: result.trace, escalated: !!result.escalated } : {});
+      msg ||= m;
+      await this.deliver(conv, part);
+    }
+    return { conversation: conv, replied: true, message: msg, ...result, text: parts.join('\n') };
   }
 
   async deliver(conv, text) {

@@ -26,7 +26,7 @@
       <button data-tab="orders">Đơn nháp <span id="badgeOrders" class="badge hidden"></span></button>
       <button data-tab="products">Catalog</button>
       <button data-tab="knowledge">Kiến thức <span id="badgeKnow" class="badge hidden"></span></button>
-      <button data-tab="lessons">Bài học</button>
+      <button data-tab="lessons">Bài học &amp; mẫu</button>
       <button data-tab="settings">Cài đặt</button>
     </nav>
     <button id="pauseBtn" class="pause"></button>
@@ -84,6 +84,16 @@
       <p class="muted">Bài học là quy tắc ứng xử đưa thẳng vào hướng dẫn của trợ lý. Thêm bằng nút "Dạy" trong hội thoại, lệnh /day trên Zalo/Lark, hoặc tại đây.</p>
       <form id="lessonForm" class="row"><input id="lessonText" placeholder="VD: Khi khách hỏi size, luôn hỏi chiều cao cân nặng trước" required><button class="primary">Thêm</button></form>
       <div id="lessons" class="list"></div>
+
+      <h3>Hội thoại mẫu – trợ lý học cách nói chuyện</h3>
+      <p class="muted">Trợ lý xem các mẫu này để học cách diễn đạt và dẫn dắt như tư vấn viên thật. Mẫu tự sinh ra từ: hội thoại AI chấm điểm cao, hội thoại anh chấm 4–5 sao, hội thoại có nhân viên trả lời, hoặc đoạn chat thật anh dán vào bên dưới. Mỗi lần trợ lý dùng 8 mẫu tốt nhất.</p>
+      <form id="transcriptForm" class="card">
+        <b>Dạy bằng đoạn chat thật</b>
+        <p class="muted small">Dán một đoạn chat tư vấn viên giỏi đã trả lời khách (copy từ Zalo/Messenger). Trợ lý tự rút: hội thoại mẫu, nhận xét phong cách, kiến thức dịch vụ (chờ duyệt). Tên, SĐT, email của khách được tự xoá.</p>
+        <textarea id="transcriptText" rows="8" placeholder="Khách: Bên em có lớp cho bé 5 tuổi không ạ?&#10;Tư vấn viên: Dạ có chị ơi, bé nhà mình đã học tiếng Anh bao giờ chưa ạ? ..."></textarea>
+        <div class="row" style="margin:6px 0 0"><button class="primary">Phân tích &amp; học</button><button type="button" id="newExample">+ Tự thêm 1 mẫu</button></div>
+      </form>
+      <div id="examples" class="list"></div>
     </section>
 
     <!-- CÀI ĐẶT -->

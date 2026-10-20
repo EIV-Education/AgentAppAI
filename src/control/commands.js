@@ -1,5 +1,5 @@
 import { formatVnd } from '../catalog.js';
-import { addLessonFromFeedback, rateConversation } from '../agent/learning.js';
+import { addLessonFromFeedback, rateConversation, learnExamplesFromConversation } from '../agent/learning.js';
 
 // Lệnh điều khiển nhanh cho chủ shop, dùng chung cho Zalo và Lark.
 export const HELP = `Lệnh điều khiển trợ lý:
@@ -110,13 +110,16 @@ export async function handleCommand(hub, rawText, { by = 'owner', minutes = 30 }
         if (!isConvId(arg)) return 'Cú pháp: /cham C12';
         const g = await hub.grade(arg, {});
         if (!g) return 'Hội thoại chưa có câu trả lời của AI để chấm.';
-        return `📊 ${arg.toUpperCase()}: ${g.score}/10 (chính xác ${g.accuracy}, hữu ích ${g.helpfulness}, giọng ${g.tone}, bán hàng ${g.sales})${g.hallucination ? '\n⚠️ Có dấu hiệu bịa thông tin' : ''}\n${g.issues.map((i) => `• ${i}`).join('\n')}${g.betterReply ? `\nGợi ý: ${g.betterReply}` : ''}`;
+        return `📊 ${arg.toUpperCase()}: ${g.score}/10 (chính xác ${g.accuracy}, hữu ích ${g.helpfulness}, giọng ${g.tone}, bán hàng ${g.sales}, tự nhiên ${g.naturalness ?? '–'})${g.hallucination ? '\n⚠️ Có dấu hiệu bịa thông tin' : ''}\n${g.issues.map((i) => `• ${i}`).join('\n')}${g.betterReply ? `\nGợi ý: ${g.betterReply}` : ''}`;
       }
 
       case '/diem': case '/rate': {
         const stars = Number(rest[1]);
         if (!isConvId(arg) || !(stars >= 1 && stars <= 5)) return 'Cú pháp: /diem C12 4 <ghi chú>';
         if (!rateConversation(store, arg, { rating: stars, note: tail(2) })) return `Không có hội thoại ${arg}`;
+        if (stars >= 4 && store.settings.learning.autoLearnExamples) {
+          learnExamplesFromConversation({ llm: hub.llm, store, conversationId: arg.toUpperCase() }).catch(() => {});
+        }
         return `⭐ Đã lưu ${stars}/5 cho ${arg.toUpperCase()}.${tail(2) ? '' : ' Muốn trợ lý sửa gì, gõ /day ' + arg.toUpperCase() + ' <góp ý>.'}`;
       }
 

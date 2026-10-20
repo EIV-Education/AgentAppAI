@@ -5,14 +5,16 @@ import { ROOT } from './config.js';
 // Kho dữ liệu JSON đơn giản: đọc toàn bộ vào bộ nhớ, ghi xuống đĩa theo lô.
 // Đủ cho một shop vài nghìn hội thoại/tháng; khi lớn hơn hãy chuyển sang Postgres/SQLite.
 
-const COLLECTIONS = ['products', 'conversations', 'messages', 'orders', 'leads', 'knowledge', 'lessons'];
-const PREFIX = { conversations: 'C', messages: 'M', orders: 'D', leads: 'KH', knowledge: 'K', lessons: 'L', products: 'SP' };
+const COLLECTIONS = ['products', 'conversations', 'messages', 'orders', 'leads', 'knowledge', 'lessons', 'examples'];
+const PREFIX = { conversations: 'C', messages: 'M', orders: 'D', leads: 'KH', knowledge: 'K', lessons: 'L', examples: 'VD', products: 'SP' };
 
 export function defaultSettings() {
   return {
     botPaused: false,
     // 'order': shop bán hàng (báo giá, đơn nháp, phí ship) · 'lead': thu thập nhu cầu + liên hệ, chuyển chuyên viên tư vấn
     salesMode: 'order',
+    // 'natural': nói chuyện tự nhiên, kịch bản chỉ để định hướng · 'script': bám sát câu mẫu
+    replyStyle: 'natural',
     // Bật/tắt AI tự trả lời theo từng kênh (tắt: tin vẫn lưu vào dashboard để người trả lời)
     aiChannels: { facebook: true, zalo: true, web: true },
     shop: {
@@ -41,6 +43,9 @@ export function defaultSettings() {
       autoApproveKnowledge: false, // true: kiến thức tự học được dùng ngay, không cần duyệt
       autoGrade: true,
       lowScoreAlert: 6, // điểm AI chấm < ngưỡng này sẽ báo chủ shop
+      autoLearnExamples: true, // rút hội thoại mẫu từ các cuộc trò chuyện tốt
+      exampleMinScore: 8,
+      autoApproveExamples: true, // false: mẫu mới chờ duyệt trong tab Bài học
     },
     notifyOnNewOrder: true,
     notifyOnNewLead: true,

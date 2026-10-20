@@ -2,7 +2,7 @@ import express from 'express';
 import crypto from 'node:crypto';
 import { config } from '../config.js';
 import { handleCommand } from '../control/commands.js';
-import { addLessonFromFeedback, rateConversation, runLearningCycle } from '../agent/learning.js';
+import { addLessonFromFeedback, rateConversation, runLearningCycle, learnExamplesFromConversation, learnFromTranscript } from '../agent/learning.js';
 import { parseProductsCsv } from '../importers.js';
 import { listProfiles, loadProfile, applyProfile } from '../profiles.js';
 
@@ -108,7 +108,15 @@ export function adminRoutes({ hub }) {
     if (!hub.llm) throw new Error('Chưa cấu hình ANTHROPIC_API_KEY');
     return (await hub.grade(req.params.id, {})) || { error: 'Chưa có câu trả lời AI để chấm' };
   }));
-  r.post('/conversations/:id/rate', wrap((req) => must(rateConversation(store, req.params.id, req.body))));
+  r.post('/conversations/:id/rate', wrap((req) => {
+    const conv = must(rateConversation(store, req.params.id, req.body));
+    // Chủ shop chấm 4-5 sao -> học cách nói chuyện từ hội thoại này
+    if (Number(req.body.rating) >= 4 && store.settings.learning.autoLearnExamples) {
+      learnExamplesFromConversation({ llm: hub.llm, store, conversationId: conv.id, score: conv.grade?.score })
+        .catch((err) => console.warn('[learning]', err.message));
+    }
+    return conv;
+  }));
   r.post('/conversations/:id/teach', wrap((req) => addLessonFromFeedback({
     llm: hub.llm, store, conversationId: req.params.id, feedback: must(String(req.body.feedback || '').trim(), 'Góp ý trống'),
   })));
@@ -171,6 +179,8 @@ export function adminRoutes({ hub }) {
   crud('products', cleanProduct);
   crud('knowledge', (b, partial) => pick(b, ['question', 'answer', 'tags', 'status'], partial, { status: 'approved' }));
   crud('lessons', (b, partial) => pick(b, ['text', 'status'], partial, { status: 'active' }));
+  crud('examples', (b, partial) => pick(b, ['customer', 'reply', 'lesson', 'status'], partial, { status: 'active', source: 'manual', fromHuman: true }));
+  r.post('/learn/transcript', wrap((req) => learnFromTranscript({ llm: hub.llm, store, text: req.body.text || '' })));
 
   r.post('/products/import', wrap((req) => {
     const items = Array.isArray(req.body.items) ? req.body.items : parseProductsCsv(String(req.body.csv || ''));
