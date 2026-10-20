@@ -129,6 +129,9 @@ export function adminRoutes({ hub }) {
   }));
   r.delete('/leads/:id', wrap((req) => ({ ok: must(store.remove('leads', req.params.id)) })));
 
+  // ---- kết nối Zalo OA (OAuth) ----
+  r.get('/zalo/connect', wrap((req, res) => res.redirect(hub.channels.zalo.authorizeUrl())));
+
   // ---- gói dữ liệu dựng sẵn ----
   r.get('/profiles', wrap(() => listProfiles()));
   r.post('/profiles/:id/apply', wrap((req) => applyProfile(store, loadProfile(req.params.id))));

@@ -342,13 +342,14 @@ async function loadSettings() {
     <div><button class="primary">Lưu cài đặt</button></div>`;
   const profiles = await api('/profiles');
   $('#profiles').innerHTML = profiles.map((p) => `<div class="row"><b>${esc(p.name)}</b><span class="muted small">${esc(p.description)}</span><button class="primary" data-profile="${esc(p.id)}">Nạp gói này</button></div>`).join('') || '<p class="muted">Chưa có gói nào.</p>';
+  $('#zaloConnect').href = `/api/admin/zalo/connect?token=${encodeURIComponent(TOKEN)}`;
   $('#embedCode').textContent = `<script src="${location.origin}/widget.js" defer></script>`;
   const o = await api('/overview');
   const ok = (on) => (on ? '✅ đã kết nối' : '⚪ chưa cấu hình');
   $('#setupInfo').textContent = [
     `Claude AI: ${ok(o.channels.ai)}`,
     `Facebook: ${ok(o.channels.facebook)}\n  Callback URL: ${location.origin}/webhooks/facebook\n  Verify token: ${o.setup.fbVerifyToken}`,
-    `Zalo OA: ${ok(o.channels.zalo)} · ${o.channels.zaloOwners} chủ shop điều khiển\n  Webhook URL: ${location.origin}/webhooks/zalo`,
+    `Zalo OA: ${ok(o.channels.zalo)} · ${o.channels.zaloOwners} chủ shop điều khiển\n  Webhook URL: ${location.origin}/webhooks/zalo\n  Official Account Callback Url: ${location.origin}/webhooks/zalo/oauth`,
     `Lark: ${ok(o.channels.lark)}\n  Request URL: ${location.origin}/webhooks/lark`,
     o.setup.publicUrl !== location.origin ? `⚠️ PUBLIC_URL trong .env (${o.setup.publicUrl}) khác địa chỉ đang mở (${location.origin})` : '',
   ].filter(Boolean).join('\n\n');

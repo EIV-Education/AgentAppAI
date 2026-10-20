@@ -38,6 +38,18 @@ export function webhookRoutes({ hub, zalo, lark, facebook }) {
   // Zalo có thể gọi thử URL khi khai báo webhook: trả 200 để xác nhận địa chỉ đang hoạt động
   r.get('/zalo', (req, res) => res.sendStatus(200));
 
+  // Zalo chuyển về đây sau khi chủ OA đồng ý cấp quyền (Official Account Callback Url)
+  r.get('/zalo/oauth', async (req, res) => {
+    const page = (ok, msg) => res.status(ok ? 200 : 400).type('html').send(`<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Kết nối Zalo OA</title><body style="font:16px system-ui;max-width:560px;margin:60px auto;padding:0 16px"><h2>${ok ? '✅ Đã kết nối Zalo OA' : '❌ Chưa kết nối được'}</h2><p>${msg.replace(/</g, '&lt;')}</p><p><a href="/">Quay lại dashboard</a></p></body>`);
+    try {
+      const { oaId } = await zalo.handleCallback(req.query);
+      page(true, `Trợ lý đã nhận token của OA${oaId ? ` ${oaId}` : ''} và sẽ tự gia hạn. Bước tiếp theo: dùng Zalo cá nhân nhắn /id cho OA.`);
+    } catch (err) {
+      console.warn('[zalo] cấp quyền lỗi:', err.message);
+      page(false, err.message);
+    }
+  });
+
   r.post('/zalo', (req, res) => {
     if (!zl.verifySignature(req.rawBody?.toString('utf8'), req.get('x-zevent-signature'), req.body)) {
       console.warn('[zalo] sai chữ ký webhook — kiểm tra ZALO_APP_ID, ZALO_OA_SECRET_KEY');

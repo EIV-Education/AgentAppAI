@@ -103,3 +103,41 @@ test('tắt AI riêng kênh Zalo: tin vẫn lưu, AI không trả lời; lệnh 
   const w = await hub.receive({ channel: 'web', externalId: 'sessweb12345', text: 'hi' });
   assert.equal(w.replied, true);
 });
+
+test('Zalo OAuth: tạo link có PKCE, callback đổi code lấy token và lưu lại', async () => {
+  const crypto = await import('node:crypto');
+  const { config } = await import('../src/config.js');
+  const { createZalo } = await import('../src/channels/zalo.js');
+  const { Store } = await import('../src/db.js');
+  const old = { ...config.zalo };
+  Object.assign(config.zalo, { appId: '111', secretKey: 'sec', accessToken: '' });
+  const realFetch = globalThis.fetch;
+  let sentBody;
+  globalThis.fetch = async (url, opts) => {
+    assert.match(url, /oauth\.zaloapp\.com\/v4\/oa\/access_token/);
+    assert.equal(opts.headers.secret_key, 'sec');
+    sentBody = new URLSearchParams(opts.body);
+    return { json: async () => ({ access_token: 'AT', refresh_token: 'RT', expires_in: '90000' }) };
+  };
+  try {
+    const store = new Store(':memory:');
+    const zalo = createZalo(store);
+    assert.equal(zalo.enabled(), false);
+    const url = new URL(zalo.authorizeUrl());
+    assert.equal(url.searchParams.get('app_id'), '111');
+    assert.match(url.searchParams.get('redirect_uri'), /\/webhooks\/zalo\/oauth$/);
+    const state = url.searchParams.get('state');
+    await assert.rejects(zalo.handleCallback({ code: 'x', state: 'sai' }), /hết hạn|không hợp lệ/);
+    await zalo.handleCallback({ code: 'CODE', state, oa_id: '1869' });
+    // code_verifier gửi đi phải khớp code_challenge trong link
+    const challenge = crypto.createHash('sha256').update(sentBody.get('code_verifier')).digest('base64url');
+    assert.equal(challenge, url.searchParams.get('code_challenge'));
+    assert.equal(sentBody.get('grant_type'), 'authorization_code');
+    assert.equal(zalo.enabled(), true);
+    assert.equal(store.data.integrations.zalo.refreshToken, 'RT');
+    await assert.rejects(zalo.handleCallback({ code: 'CODE', state }), /hết hạn|không hợp lệ/); // state chỉ dùng 1 lần
+  } finally {
+    globalThis.fetch = realFetch;
+    Object.assign(config.zalo, old);
+  }
+});
