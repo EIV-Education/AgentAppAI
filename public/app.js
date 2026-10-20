@@ -460,6 +460,12 @@ $('#zaloOwners').onclick = run(async (e) => {
   if (d.zadd) { await api('/zalo/owners', { method: 'POST', body: { id: d.zadd } }); toast('Đã cấp quyền. Nhắn /help cho OA để thử.'); loadSettings(); }
   if (d.zremove && confirm('Bỏ quyền điều khiển của ID này?')) { await api('/zalo/owners', { method: 'POST', body: { id: d.zremove, remove: true } }); loadSettings(); }
 });
+$('#logsLoad').onclick = $('#logsErr').onchange = run(async () => {
+  const logs = await api('/logs');
+  const only = $('#logsErr').checked;
+  $('#logsOut').textContent = logs.filter((l) => !only || l.level !== 'log')
+    .map((l) => `${time(l.at)} ${l.level === 'error' ? '❌' : l.level === 'warn' ? '⚠️' : '·'} ${l.text}`).join('\n') || 'Chưa có dòng nào (nhật ký bắt đầu từ lần khởi động gần nhất).';
+});
 $('#profiles').onclick = run(async (e) => {
   const id = e.target.dataset.profile;
   if (!id || !confirm('Nạp gói này sẽ thay toàn bộ Catalog và kiến thức mẫu hiện tại. Tiếp tục?')) return;

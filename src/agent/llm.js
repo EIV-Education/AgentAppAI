@@ -4,7 +4,8 @@ import { config } from '../config.js';
 // Lớp mỏng quanh Claude API để dễ thay bằng bản giả lập khi test.
 // Bật fallback phía server: nếu bộ lọc an toàn từ chối, API tự chạy lại trên model dự phòng.
 export function createLLM() {
-  const client = new Anthropic();
+  // Giới hạn thời gian: một lần gọi treo không được giữ khách chờ quá lâu
+  const client = new Anthropic({ timeout: config.anthropic.timeoutMs, maxRetries: 1 });
   return {
     model: config.anthropic.model,
     async create(params) {

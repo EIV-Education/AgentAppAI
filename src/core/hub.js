@@ -81,7 +81,9 @@ export class Hub {
     if (pageId && conv.pageId !== pageId) this.store.update('conversations', conv.id, { pageId, pageName: pageName || null });
     else if (pageName && !conv.pageName) this.store.update('conversations', conv.id, { pageName });
     this.addMessage(conv, 'customer', text, messageId ? { externalMessageId: messageId } : {});
+    console.log(`[hub] tin mới ${conv.id} (${channel}${conv.pageName ? ` · ${conv.pageName}` : ''}): ${text.slice(0, 80)}`);
     if (!this.aiActive(conv)) {
+      console.log(`[hub] ${conv.id} (${channel}) không gọi AI: ${this.aiOffReason(conv)}`);
       if (this.store.settings.botPaused && !conv.pausedNoticeSent) {
         this.store.update('conversations', conv.id, { pausedNoticeSent: true });
         await this.notify(`💬 [${conv.id}] ${CHANNEL_LABEL[channel]} – ${conv.customerName || 'Khách'} nhắn khi trợ lý đang TẠM DỪNG:\n"${text.slice(0, 300)}"\n→ Trả lời: /tl ${conv.id} <nội dung>`);
@@ -110,8 +112,25 @@ export class Hub {
   }
 
   async respond(convId) {
+    const started = Date.now();
+    try {
+      const r = await this.respondInner(convId);
+      if (r?.replied) console.log(`[hub] ${convId} AI trả lời sau ${((Date.now() - started) / 1000).toFixed(1)}s`);
+      return r;
+    } catch (err) {
+      // Lỗi ngoài dự kiến: ghi log và báo chủ shop thay vì im lặng
+      console.error(`[hub] ${convId} lỗi khi trả lời:`, err);
+      await this.notify(`⚠️ [${convId}] Trợ lý gặp lỗi khi trả lời khách: ${err.message}\n→ /tl ${convId} <nội dung>`);
+      return { replied: false };
+    }
+  }
+
+  async respondInner(convId) {
     const conv = this.store.get('conversations', convId);
-    if (!this.aiActive(conv)) return { conversation: conv, replied: false };
+    if (!this.aiActive(conv)) {
+      console.log(`[hub] ${convId} AI không trả lời: ${this.aiOffReason(conv)}`);
+      return { conversation: conv, replied: false };
+    }
     const channel = this.channels[conv.channel];
     channel?.typing?.(conv.externalId, conv);
 

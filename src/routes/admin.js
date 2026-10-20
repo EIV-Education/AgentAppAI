@@ -6,6 +6,7 @@ import { addLessonFromFeedback, rateConversation, runLearningCycle, learnExample
 import { parseProductsCsv } from '../importers.js';
 import { listProfiles, loadProfile, applyProfile } from '../profiles.js';
 import { LEAD_ATTRS, guessMap } from '../crm.js';
+import { recentLogs } from '../logbuffer.js';
 
 // API cho dashboard quản trị. Bảo vệ bằng ADMIN_TOKEN (header Authorization: Bearer ... hoặc ?token=).
 export function adminRoutes({ hub }) {
@@ -207,6 +208,8 @@ export function adminRoutes({ hub }) {
     store.save();
     return { ok: true, zaloOwnerIds: [...cur] };
   }));
+
+  r.get('/logs', wrap(() => recentLogs()));
 
   // ---- Trang Facebook ----
   r.get('/facebook/connect', wrap((req, res) => res.redirect(hub.channels.facebook.authorizeUrl())));

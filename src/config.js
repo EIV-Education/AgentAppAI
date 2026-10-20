@@ -29,6 +29,7 @@ export const config = {
     model: env('CLAUDE_MODEL', 'claude-opus-5-5'),
     chatEffort: env('CHAT_EFFORT', 'medium'),
     gradeEffort: env('GRADE_EFFORT', 'medium'),
+    timeoutMs: Number(env('AI_TIMEOUT_SECONDS', '120')) * 1000,
   },
 
   facebook: {

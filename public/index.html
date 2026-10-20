@@ -119,6 +119,12 @@
       </div>
       <form id="settingsForm" class="settings"></form>
       <div class="card">
+        <h3>Nhật ký hoạt động gần đây</h3>
+        <p class="muted small">200 dòng gần nhất: tin đến, AI trả lời mất bao lâu, lỗi gửi tin, lỗi kết nối. Gửi ảnh chụp phần này khi cần hỗ trợ.</p>
+        <div class="row"><button id="logsLoad">Tải nhật ký</button><label class="small"><input type="checkbox" id="logsErr"> Chỉ cảnh báo &amp; lỗi</label></div>
+        <pre id="logsOut" class="small" style="max-height:360px;overflow:auto"></pre>
+      </div>
+      <div class="card">
         <h3>Lệnh nhanh (giống trên Zalo/Lark)</h3>
         <form id="cmdForm" class="row"><input id="cmdText" placeholder="/help"><button>Chạy</button></form>
         <pre id="cmdOut" class="muted"></pre>

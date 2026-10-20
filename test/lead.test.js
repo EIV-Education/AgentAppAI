@@ -158,3 +158,17 @@ test('dashboard nói rõ lý do AI không trả lời', async () => {
   store.updateSettings({ botPaused: true });
   assert.match(hub.aiOffReason(conv), /TẠM DỪNG/);
 });
+
+test('lỗi ngoài dự kiến khi trả lời: không im lặng, báo chủ shop và không kẹt hàng chờ', async () => {
+  const { hub, notes, store, llm } = makeHub([text('Dạ em chào anh')]);
+  const conv = hub.getOrCreateConversation('facebook', 'pX', 'A');
+  const orig = hub.respondInner.bind(hub);
+  let first = true;
+  hub.respondInner = async (id) => { if (first) { first = false; throw new Error('hỏng bất ngờ'); } return orig(id); };
+  await hub.receive({ channel: 'facebook', externalId: 'pX', text: 'hi' });
+  assert.match(notes.at(-1), /hỏng bất ngờ/);
+  const r = await hub.receive({ channel: 'facebook', externalId: 'pX', text: 'xin chào' });
+  assert.equal(r.replied, true);
+  assert.equal(llm.calls.length, 1);
+  assert.equal(store.find('messages', (m) => m.conversationId === conv.id && m.role === 'bot').length, 1);
+});

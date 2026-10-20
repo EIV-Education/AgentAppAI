@@ -15,6 +15,7 @@ import { adminRoutes } from './routes/admin.js';
 import { runLearningCycle } from './agent/learning.js';
 import { createCrm } from './crm.js';
 import { privacyPage, dataDeletionPage } from './legal.js';
+import { captureConsole } from './logbuffer.js';
 
 export function createApp({ store, llm, channels, notifier, crm } = {}) {
   store ||= new Store(config.dataFile);
@@ -60,6 +61,7 @@ export function createApp({ store, llm, channels, notifier, crm } = {}) {
 
 // Chạy trực tiếp: node src/server.js
 if (process.argv[1] && path.resolve(process.argv[1]) === path.join(ROOT, 'src', 'server.js')) {
+  captureConsole();
   const store = new Store(config.dataFile);
   if (!store.all('products').length && fs.existsSync(path.join(ROOT, 'data', 'seed.json'))) {
     const seed = JSON.parse(fs.readFileSync(path.join(ROOT, 'data', 'seed.json'), 'utf8'));
