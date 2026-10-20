@@ -14,6 +14,7 @@ import { webchatRoutes } from './routes/webchat.js';
 import { adminRoutes } from './routes/admin.js';
 import { runLearningCycle } from './agent/learning.js';
 import { createCrm } from './crm.js';
+import { privacyPage, dataDeletionPage } from './legal.js';
 
 export function createApp({ store, llm, channels, notifier, crm } = {}) {
   store ||= new Store(config.dataFile);
@@ -41,6 +42,9 @@ export function createApp({ store, llm, channels, notifier, crm } = {}) {
   }, webchatRoutes({ hub }));
   app.use('/api/admin', adminRoutes({ hub }));
   app.get('/healthz', (req, res) => res.json({ ok: true }));
+  // Trang công khai cho hồ sơ duyệt ứng dụng Meta/Zalo
+  app.get(['/privacy', '/privacy.html'], (req, res) => res.type('html').send(privacyPage(store.settings.shop, '20/10/2026')));
+  app.get(['/data-deletion', '/data-deletion.html'], (req, res) => res.type('html').send(dataDeletionPage(store.settings.shop)));
   app.get(['/', '/index.html'], (req, res) => {
     let html = fs.readFileSync(path.join(ROOT, 'public', 'index.html'), 'utf8');
     if (config.zalo.siteVerification) {

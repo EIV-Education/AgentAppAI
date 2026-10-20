@@ -381,7 +381,7 @@ async function loadSettings() {
       ${f('followUp.text', 'Nội dung tin nhắc', s.followUp.text, 'textarea')}</fieldset>
     <fieldset><legend>Thông tin shop</legend>
       ${f('shop.name', 'Tên shop', s.shop.name)}${f('shop.description', 'Giới thiệu ngắn', s.shop.description, 'textarea')}
-      ${f('shop.hotline', 'Hotline', s.shop.hotline)}${f('shop.workingHours', 'Giờ làm việc', s.shop.workingHours)}
+      ${f('shop.hotline', 'Hotline', s.shop.hotline)}${f('shop.email', 'Email liên hệ (hiện trên trang chính sách quyền riêng tư /privacy)', s.shop.email)}${f('shop.workingHours', 'Giờ làm việc', s.shop.workingHours)}
       ${f('shop.tone', 'Giọng điệu trợ lý', s.shop.tone, 'textarea')}</fieldset>
     <fieldset><legend>Chính sách (trợ lý chỉ trả lời theo nội dung này)</legend>
       ${f('policies.shipping', 'Giao hàng', s.policies.shipping, 'textarea')}${f('policies.returns', 'Đổi trả', s.policies.returns, 'textarea')}

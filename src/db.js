@@ -21,6 +21,7 @@ export function defaultSettings() {
       name: 'Shop của bạn',
       description: '',
       hotline: '',
+      email: '', // email liên hệ, hiện trên trang chính sách quyền riêng tư
       workingHours: '8:00 - 21:00 hằng ngày',
       tone: 'Thân thiện, xưng "em", gọi khách là "anh/chị", ngắn gọn, dùng tiếng Việt có dấu.',
       greeting: '', // lời chào đầu tiên trên widget web

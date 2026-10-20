@@ -157,3 +157,17 @@ test('Zalo: lấy tên hiển thị của khách khi nhắn lần đầu', async
     assert.equal(calls, 1); // đã có tên thì không gọi lại
   } finally { server.close(); }
 });
+
+test('trang chính sách quyền riêng tư và hướng dẫn xoá dữ liệu', async () => {
+  const t = await boot();
+  try {
+    t.store.updateSettings({ shop: { name: 'EIV Education', email: 'it@eiv.edu.vn' } });
+    const p = await (await fetch(`${t.base}/privacy`)).text();
+    assert.match(p, /Chính sách quyền riêng tư/);
+    assert.match(p, /EIV Education/);
+    assert.match(p, /it@eiv\.edu\.vn/);
+    const d = await fetch(`${t.base}/data-deletion`);
+    assert.equal(d.status, 200);
+    assert.match(await d.text(), /Yêu cầu xoá dữ liệu/);
+  } finally { t.close(); }
+});
