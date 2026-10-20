@@ -3,12 +3,13 @@ import { learnFromOwnerAnswer, gradeConversation } from '../agent/learning.js';
 import { config } from '../config.js';
 import { formatVnd } from '../catalog.js';
 
-const CHANNEL_LABEL = { facebook: 'Facebook', zalo: 'Zalo', web: 'Web' };
+const CHANNEL_LABEL = { facebook: 'Facebook', zalo: 'Zalo', web: 'Web', manual: 'Nhập tay' };
 export const SEGMENT_LABEL = { school_center: 'Trường học/Trung tâm', business: 'Doanh nghiệp', kids: 'Cá nhân – Trẻ em', adult: 'Cá nhân – Người đi làm', other: 'Khác' };
 
 // Trung tâm xử lý: nhận tin từ mọi kênh, quyết định AI trả lời hay chờ người, gửi thông báo cho chủ shop.
 export class Hub {
-  constructor({ store, llm, channels = {}, notifier }) {
+  constructor({ store, llm, channels = {}, notifier, crm = null }) {
+    this.crm = crm;
     this.store = store;
     this.llm = llm;
     this.channels = channels; // { facebook, zalo, web }
@@ -101,7 +102,7 @@ export class Hub {
       if (!this.llm) throw new Error('Chưa cấu hình ANTHROPIC_API_KEY');
       result = await generateReply({
         llm: this.llm, store: this.store, conversation: conv, history: this.history(conv.id),
-        hooks: { onEscalate: (c, info) => this.onEscalate(c, info), onOrder: (o) => this.onOrder(o), onLead: (l) => this.onLead(l) },
+        hooks: { onEscalate: (c, info) => this.onEscalate(c, info), onOrder: (o) => this.onOrder(o), onLead: (l) => this.onLead(l), onLeadUpdate: (l) => this.syncLead(l) },
       });
     } catch (err) {
       console.error(`[hub] AI lỗi ở ${conv.id}:`, err.message);
@@ -224,10 +225,19 @@ export class Hub {
     await this.notify(`🛒 Đơn nháp ${order.id} từ [${order.conversationId}] ${CHANNEL_LABEL[order.channel]}\n${items}\nShip: ${formatVnd(order.shippingFee)} – Tổng: ${formatVnd(order.total)}\n${order.customer.name} – ${order.customer.phone}\n${order.customer.address}${order.note ? `\nGhi chú: ${order.note}` : ''}\n→ /duyet ${order.id} hoặc /huy ${order.id} <lý do>`);
   }
 
+  // Đẩy khách lên CRM chạy nền, không làm chậm câu trả lời cho khách
+  syncLead(lead) {
+    if (!this.crm?.enabled() || !lead) return;
+    this.crm.sync(this.store.get('leads', lead.id) || lead).then((ok) => {
+      for (const fn of this.listeners) fn({ type: 'lead', lead: ok || lead });
+    });
+  }
+
   async onLead(lead) {
+    this.syncLead(lead);
     for (const fn of this.listeners) fn({ type: 'lead', lead });
     if (!this.store.settings.notifyOnNewLead) return;
-    await this.notify(`🎯 Khách tiềm năng ${lead.id} từ [${lead.conversationId}] ${CHANNEL_LABEL[lead.channel]} – ${SEGMENT_LABEL[lead.segment] || lead.segment}\n${lead.contactName || 'Khách'} – ${lead.phone}${lead.email ? ` – ${lead.email}` : ''}${lead.area ? `\nKhu vực: ${lead.area}` : ''}\nNhu cầu: ${lead.needs}\n→ Đã liên hệ: /lienhe ${lead.id}`);
+    await this.notify(`🎯 Khách tiềm năng ${lead.id} từ ${lead.conversationId ? `[${lead.conversationId}] ` : ''}${CHANNEL_LABEL[lead.channel]} – ${SEGMENT_LABEL[lead.segment] || lead.segment}\n${lead.contactName || 'Khách'} – ${lead.phone}${lead.email ? ` – ${lead.email}` : ''}${lead.address || lead.area ? `\nĐịa chỉ: ${lead.address || lead.area}` : ''}\nNhu cầu: ${lead.needs}\n→ Đã liên hệ: /lienhe ${lead.id}`);
   }
 
   // Nhắn nhắc khách một lần khi khách im lặng sau câu trả lời của trợ lý (trong 23 giờ — giới hạn của Facebook)

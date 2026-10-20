@@ -95,6 +95,7 @@ export const TOOL_DEFS = [
         phone: { type: 'string', description: 'Số điện thoại hoặc Zalo' },
         email: { type: 'string' },
         area: { type: 'string', description: 'Tỉnh/thành, khu vực' },
+        address: { type: 'string', description: 'Địa chỉ cụ thể nếu khách cho (số nhà, đường, quận...)' },
         needs: { type: 'string', description: 'Tóm tắt nhu cầu: độ tuổi, mục tiêu, hình thức học, quy mô, cấp trường... đúng như khách nói' },
         service_id: { type: 'string', description: 'Mã dịch vụ/khoá học trong catalog nếu xác định được' },
       },
@@ -225,12 +226,13 @@ export async function runTool(name, input, ctx) {
       if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { error: 'Email chưa đúng định dạng, hãy hỏi lại khách.' };
       const fields = {
         segment: input.segment, contactName: input.contact_name || ctx.conversation.customerName || '', phone,
-        email, area: input.area || '', needs: input.needs || '', serviceId: input.service_id || '',
+        email, area: input.area || '', address: input.address || '', needs: input.needs || '', serviceId: input.service_id || '',
       };
       const existing = store.find('leads', (l) => l.phone === phone && l.conversationId === ctx.conversation.id)[0];
       if (existing) {
         const merged = Object.fromEntries(Object.entries(fields).map(([k, v]) => [k, v || existing[k]]));
-        store.update('leads', existing.id, merged);
+        const updated = store.update('leads', existing.id, merged);
+        await ctx.hooks?.onLeadUpdate?.(updated);
         return { lead_id: existing.id, status: 'Đã cập nhật thông tin khách', instruction: 'Cảm ơn khách, không cần hỏi lại thông tin đã có.' };
       }
       const lead = store.insert('leads', { status: 'new', conversationId: ctx.conversation.id, channel: ctx.conversation.channel, ...fields });

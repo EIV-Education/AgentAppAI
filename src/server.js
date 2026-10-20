@@ -13,8 +13,9 @@ import { webhookRoutes } from './routes/webhooks.js';
 import { webchatRoutes } from './routes/webchat.js';
 import { adminRoutes } from './routes/admin.js';
 import { runLearningCycle } from './agent/learning.js';
+import { createCrm } from './crm.js';
 
-export function createApp({ store, llm, channels, notifier } = {}) {
+export function createApp({ store, llm, channels, notifier, crm } = {}) {
   store ||= new Store(config.dataFile);
   const zalo = channels?.zalo || createZalo(store);
   const web = { name: 'web', enabled: () => true, async send() {} }; // widget tự lấy tin qua API
@@ -23,6 +24,7 @@ export function createApp({ store, llm, channels, notifier } = {}) {
     llm: llm === undefined ? createLLM() : llm,
     channels: { facebook, zalo, web, ...channels },
     notifier: notifier === undefined ? createNotifier({ zalo, lark }) : notifier,
+    crm: crm === undefined ? createCrm({ store }) : crm,
   });
 
   const app = express();
@@ -81,6 +83,8 @@ if (process.argv[1] && path.resolve(process.argv[1]) === path.join(ROOT, 'src', 
   setInterval(cycle, config.learningIntervalMinutes * 60_000).unref();
   // Nhắn nhắc khách im lặng (bật/tắt trong Cài đặt)
   setInterval(() => hub.runFollowUps().catch((err) => console.warn('[nhắc khách]', err.message)), 5 * 60_000).unref();
+  // Gửi lại khách chưa lên được CRM
+  setInterval(() => hub.crm?.retryPending().catch((err) => console.warn('[crm]', err.message)), 10 * 60_000).unref();
 
   const shutdown = () => { store.flush(); process.exit(0); };
   process.on('SIGINT', shutdown);

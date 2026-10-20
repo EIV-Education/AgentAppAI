@@ -3,7 +3,7 @@ const $ = (s, el = document) => el.querySelector(s);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const vnd = (n) => (n == null ? '–' : `${Number(n).toLocaleString('vi-VN')}đ`);
 const time = (iso) => (iso ? new Date(iso).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' }) : '');
-const CH = { facebook: 'FB', zalo: 'Zalo', web: 'Web' };
+const CH = { facebook: 'FB', zalo: 'Zalo', web: 'Web', manual: 'Nhập tay' };
 
 let TOKEN = '';
 try { TOKEN = localStorage.getItem('adminToken') || ''; } catch { /* trình duyệt chặn lưu trữ */ }
@@ -179,16 +179,23 @@ async function loadLeads() {
   leads = await api(`/leads?status=${$('#lStatus').value}`);
   $('#leads').innerHTML = leads.map((l) => `
     <div class="card">
-      <div class="row"><b>${l.id}</b><span class="ch ${l.channel}">${CH[l.channel]}</span><span class="tag">${SEG[l.segment] || esc(l.segment)}</span><span class="muted small">${time(l.createdAt)} · ${l.conversationId}</span></div>
+      <div class="row"><b>${l.id}</b><span class="ch ${l.channel}">${CH[l.channel]}</span><span class="tag">${SEG[l.segment] || esc(l.segment)}</span><span class="muted small">${time(l.createdAt)}${l.conversationId ? ` · ${l.conversationId}` : ''}</span></div>
       <div><b>${esc(l.contactName || 'Khách')}</b> – <a href="tel:${esc(l.phone)}">${esc(l.phone)}</a>${l.email ? ` – ${esc(l.email)}` : ''}</div>
-      ${l.area ? `<div class="muted">Khu vực: ${esc(l.area)}</div>` : ''}
+      ${l.address || l.area ? `<div class="muted">Địa chỉ: ${esc([l.address, l.area].filter(Boolean).join(' – '))}</div>` : ''}
       <div>${esc(l.needs)}</div>
       ${l.note ? `<div class="muted">Ghi chú: ${esc(l.note)}</div>` : ''}
       <div class="row"><select data-lead="${l.id}">${Object.entries(L_STATUS).map(([k, v]) => `<option value="${k}" ${k === l.status ? 'selected' : ''}>${v}</option>`).join('')}</select>
-        <button data-note="${l.id}">Ghi chú</button><button data-conv="${l.conversationId}">Xem hội thoại</button></div>
+        <button data-edit="${l.id}">Sửa</button><button data-note="${l.id}">Ghi chú</button>${l.conversationId ? `<button data-conv="${l.conversationId}">Xem hội thoại</button>` : ''}</div>
+      ${l.crmRecordId ? `<div class="muted small">✅ Đã lên CRM ${time(l.crmSyncedAt)}</div>` : l.crmError ? `<div class="small" style="color:var(--bad)">⚠️ Chưa lên CRM: ${esc(l.crmError)} <button data-crm="${l.id}">Gửi lại</button></div>` : ''}
     </div>`).join('') || '<p class="muted">Không có khách nào.</p>';
 }
 $('#lStatus').onchange = run(loadLeads);
+const LEAD_FIELDS = [['contactName', 'Tên khách hàng', 'text'], ['phone', 'Số điện thoại / Zalo', 'text'], ['needs', 'Nhu cầu / mục đích', 'textarea'], ['address', 'Địa chỉ', 'text'], ['area', 'Khu vực', 'text'], ['email', 'Email', 'text'], ['note', 'Ghi chú', 'textarea']];
+$('#newLead').onclick = () => dialog('Thêm khách sau khi tư vấn', LEAD_FIELDS, run(async (v) => {
+  const l = await api('/leads', { method: 'POST', body: v });
+  toast(`Đã thêm ${l.id}${l.crmError ? '' : ', đang đẩy lên CRM…'}`);
+  setTimeout(loadLeads, 1500);
+}));
 $('#leads').onchange = run(async (e) => {
   if (!e.target.dataset.lead) return;
   await api(`/leads/${e.target.dataset.lead}`, { method: 'PUT', body: { status: e.target.value } });
@@ -201,6 +208,11 @@ $('#leads').onclick = run(async (e) => {
     dialog(`Ghi chú ${l.id}`, [['note', 'Ghi chú (kết quả gọi điện, lịch hẹn...)', 'textarea', l.note]], run(async (v) => { await api(`/leads/${l.id}`, { method: 'PUT', body: v }); loadLeads(); }));
   }
   if (d.conv) { document.querySelector('[data-tab=inbox]').click(); openConv(d.conv); }
+  if (d.edit) {
+    const l = leads.find((x) => x.id === d.edit);
+    dialog(`Sửa ${l.id}`, LEAD_FIELDS.map(([k, label, type]) => [k, label, type, l[k]]), run(async (v) => { await api(`/leads/${l.id}`, { method: 'PUT', body: v }); toast('Đã lưu, đang cập nhật CRM…'); loadLeads(); }));
+  }
+  if (d.crm) { await api(`/leads/${d.crm}/crm`, { method: 'POST' }); toast('Đã gửi lên CRM'); loadLeads(); }
 });
 $('#exportLeads').onclick = run(async () => {
   const all = await api('/leads');
@@ -382,6 +394,8 @@ async function loadSettings() {
     <div><button class="primary">Lưu cài đặt</button></div>`;
   const profiles = await api('/profiles');
   $('#profiles').innerHTML = profiles.map((p) => `<div class="row"><b>${esc(p.name)}</b><span class="muted small">${esc(p.description)}</span><button class="primary" data-profile="${esc(p.id)}">Nạp gói này</button></div>`).join('') || '<p class="muted">Chưa có gói nào.</p>';
+  $('#crmUrl').value = s.crm?.baseUrl || '';
+  if (s.crm?.baseUrl) loadCrmFields(s.crm).catch((e) => { $('#crmMap').innerHTML = `<p class="small" style="color:var(--bad)">⚠️ ${esc(e.message)}</p>`; });
   const zo = await api('/zalo/owners');
   $('#zaloOwners').innerHTML = [
     ...zo.fromEnv.map((id) => `<div class="row"><span>✅ ${esc(id)}</span><span class="muted small">(trong file .env)</span></div>`),
@@ -400,6 +414,23 @@ async function loadSettings() {
     o.setup.publicUrl !== location.origin ? `⚠️ PUBLIC_URL trong .env (${o.setup.publicUrl}) khác địa chỉ đang mở (${location.origin})` : '',
   ].filter(Boolean).join('\n\n');
 }
+async function loadCrmFields(crm) {
+  const baseUrl = $('#crmUrl').value.trim();
+  const r = await api('/crm/fields', { method: 'POST', body: { baseUrl } });
+  const map = Object.keys(crm?.fieldMap || {}).length ? crm.fieldMap : r.guess;
+  const opts = (sel) => ['<option value="">— không gửi —</option>', ...r.fields.filter((f) => f.writable).map((f) => `<option ${f.field_name === sel ? 'selected' : ''}>${esc(f.field_name)}</option>`)].join('');
+  $('#crmMap').innerHTML = `
+    <p class="muted small">Đọc được ${r.fields.length} cột. Chọn cột CRM tương ứng với từng thông tin (em đã đoán sẵn theo tên cột):</p>
+    ${Object.entries(r.attrs).map(([k, label]) => `<div class="row" style="margin:4px 0"><span style="min-width:280px">${esc(label)}</span><select data-attr="${k}">${opts(map[k])}</select></div>`).join('')}
+    <div class="row"><label class="small"><input type="checkbox" id="crmEnabled" ${crm?.enabled ? 'checked' : ''}> Bật tự động đẩy khách lên CRM</label><button class="primary" id="crmSave">Lưu CRM</button></div>`;
+  $('#crmSave').onclick = run(async () => {
+    const fieldMap = {};
+    document.querySelectorAll('#crmMap select[data-attr]').forEach((s) => { if (s.value) fieldMap[s.dataset.attr] = s.value; });
+    await api('/settings', { method: 'PUT', body: { crm: { enabled: $('#crmEnabled').checked, baseUrl, fieldMap } } });
+    toast($('#crmEnabled').checked ? '✅ Đã bật đẩy khách lên CRM' : 'Đã lưu (chưa bật)');
+  });
+}
+$('#crmLoad').onclick = run(async () => { $('#crmMap').innerHTML = '<p class="muted small">Đang đọc cột…</p>'; await loadCrmFields((await api('/settings')).crm); });
 $('#zaloOwners').onclick = run(async (e) => {
   const d = e.target.dataset;
   if (d.zadd) { await api('/zalo/owners', { method: 'POST', body: { id: d.zadd } }); toast('Đã cấp quyền. Nhắn /help cho OA để thử.'); loadSettings(); }

@@ -47,6 +47,8 @@ export function defaultSettings() {
       exampleMinScore: 8,
       autoApproveExamples: true, // false: mẫu mới chờ duyệt trong tab Bài học
     },
+    // Đẩy khách tiềm năng lên CRM Lark Base
+    crm: { enabled: false, baseUrl: '', fieldMap: {} },
     zaloOwnerIds: [], // ID Zalo được điều khiển trợ lý (ngoài ZALO_OWNER_IDS trong .env)
     notifyOnNewOrder: true,
     notifyOnNewLead: true,

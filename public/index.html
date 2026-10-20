@@ -51,6 +51,7 @@
     <section data-view="leads" class="hidden">
       <div class="row">
         <select id="lStatus"><option value="new">Chưa liên hệ</option><option value="contacted">Đã liên hệ</option><option value="won">Đã chốt</option><option value="lost">Không thành</option><option value="">Tất cả</option></select>
+        <button class="primary" id="newLead">+ Thêm khách</button>
         <button id="exportLeads">Tải CSV (Excel)</button>
       </div>
       <div id="leads" class="grid"></div>
@@ -98,6 +99,12 @@
 
     <!-- CÀI ĐẶT -->
     <section data-view="settings" class="hidden">
+      <div class="card">
+        <h3>CRM Lark Base</h3>
+        <p class="muted small">Mỗi khách tiềm năng (do trợ lý thu thập hoặc nhân viên nhập) tự tạo một dòng trong bảng CRM; khi có thêm thông tin thì dòng đó được cập nhật. Cần: ứng dụng Lark có quyền Base và đã được thêm vào Base (xem hướng dẫn).</p>
+        <div class="row"><input id="crmUrl" placeholder="Dán link bảng Base: https://…larksuite.com/base/…?table=tbl…"><button id="crmLoad">Tải cột từ CRM</button></div>
+        <div id="crmMap"></div>
+      </div>
       <div class="card">
         <h3>Gói dữ liệu dựng sẵn</h3>
         <p class="muted small">Nạp gói sẽ <b>thay toàn bộ Catalog và kiến thức mẫu</b>, cập nhật cài đặt và kịch bản. Hội thoại, đơn, khách tiềm năng và kiến thức bạn tự dạy được giữ nguyên.</p>

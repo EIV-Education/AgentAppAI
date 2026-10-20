@@ -190,3 +190,19 @@ Dán dòng sau vào trước thẻ `</body>` của website (WordPress: dùng plu
 - [ ] Hỏi một câu shop chưa có dữ liệu: Lark/Zalo của chủ shop nhận thông báo "cần bạn hỗ trợ"
 - [ ] Chốt thử một đơn: nhận thông báo đơn nháp, gõ `/duyet D1`, khách nhận tin xác nhận
 - [ ] Gõ `/tamdung`: trợ lý ngừng trả lời. Gõ `/tieptuc`: trợ lý trả lời lại
+
+---
+
+## Nối CRM Lark Base (tự đẩy khách tiềm năng lên CRM)
+
+Mỗi khách tiềm năng (trợ lý thu thập trong chat, hoặc nhân viên bấm **+ Thêm khách** sau khi tư vấn) tự tạo một dòng trong bảng CRM: tên, SĐT, nhu cầu, địa chỉ... Khi khách bổ sung thông tin hoặc nhân viên sửa, dòng đó được cập nhật.
+
+1. **Tạo ứng dụng Lark** (bỏ qua nếu đã có ứng dụng cho bot điều khiển): open.larksuite.com/app → *Create Custom App* → chép **App ID**, **App Secret**.
+2. **Cấp quyền Base**: *Permissions & Scopes* → thêm quyền **`bitable:app`** (xem, chỉnh sửa Base) → *Version Management & Release* → tạo phiên bản → *Publish* (quản trị Lark duyệt).
+3. **Thêm ứng dụng vào bảng CRM**: mở Base CRM → nút **…** góc phải trên → **Thêm ứng dụng tài liệu** (*Add document app*) → chọn ứng dụng vừa tạo → quyền **Có thể chỉnh sửa**.
+4. **Điền vào VPS** (Phần cuối):
+   ```bash
+   sed -i 's|^LARK_APP_ID=.*|LARK_APP_ID=DAN_APP_ID|; s|^LARK_APP_SECRET=.*|LARK_APP_SECRET=DAN_APP_SECRET|' /opt/agentappai/.env && sudo systemctl restart agentappai
+   ```
+5. **Dashboard → Cài đặt → CRM Lark Base**: dán link bảng CRM → **Tải cột từ CRM** → kiểm tra cột được ghép (đã đoán sẵn theo tên) → tick **Bật tự động đẩy khách lên CRM** → **Lưu CRM**.
+6. Thử: tab **Khách tiềm năng** → **+ Thêm khách** → mở bảng CRM thấy dòng mới là xong. Thẻ khách hiện **✅ Đã lên CRM**; nếu lỗi sẽ hiện lý do và nút **Gửi lại** (hệ thống cũng tự gửi lại mỗi 10 phút).

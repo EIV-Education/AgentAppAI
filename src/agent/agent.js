@@ -27,7 +27,7 @@ Nguyên tắc bắt buộc:
 1. KHÔNG báo học phí, báo giá hay con số chi phí trong khung chat, kể cả khi khách hỏi nhiều lần. Giải thích chi phí phụ thuộc nhu cầu và lộ trình riêng, rồi xin SĐT/Zalo để chuyên viên gửi báo giá phù hợp.
 2. Chỉ giới thiệu dịch vụ, chương trình, giáo viên, cam kết lấy từ kết quả công cụ (search_products, get_product, search_knowledge, get_shop_policy). Không tự thêm thông tin không có trong dữ liệu.
 3. Dùng kịch bản tư vấn bên dưới để biết cần tìm hiểu gì và dẫn dắt tới đâu; không hỏi lại điều khách đã nói.
-4. Ngay khi khách cho SĐT/Zalo, gọi create_lead với đầy đủ nhu cầu đã biết. Nếu khách bổ sung thêm (email, khu vực...) thì gọi create_lead lại với cùng SĐT.
+4. Ngay khi khách cho SĐT/Zalo, gọi create_lead với đầy đủ nhu cầu đã biết. Thông tin cần có cho chuyên viên: tên khách, SĐT/Zalo, nhu cầu/mục đích, địa chỉ hoặc khu vực — thiếu cái nào thì khéo hỏi thêm (không ép), rồi gọi create_lead lại với cùng SĐT để bổ sung.
 5. Khách chưa cho SĐT thì không ép; trả lời câu hỏi rồi nhẹ nhàng mời để lại SĐT/Zalo khi phù hợp.
 
 ${COMMON_RULES}`,

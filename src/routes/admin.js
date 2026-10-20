@@ -5,6 +5,7 @@ import { handleCommand } from '../control/commands.js';
 import { addLessonFromFeedback, rateConversation, runLearningCycle, learnExamplesFromConversation, learnFromTranscript } from '../agent/learning.js';
 import { parseProductsCsv } from '../importers.js';
 import { listProfiles, loadProfile, applyProfile } from '../profiles.js';
+import { LEAD_ATTRS, guessMap } from '../crm.js';
 
 // API cho dashboard quản trị. Bảo vệ bằng ADMIN_TOKEN (header Authorization: Bearer ... hoặc ?token=).
 export function adminRoutes({ hub }) {
@@ -132,8 +133,36 @@ export function adminRoutes({ hub }) {
     const patch = {};
     if (['new', 'contacted', 'won', 'lost'].includes(req.body.status)) patch.status = req.body.status;
     if (req.body.note != null) patch.note = String(req.body.note);
+    for (const k of ['contactName', 'phone', 'email', 'area', 'address', 'needs']) if (req.body[k] != null) patch[k] = String(req.body[k]).trim();
     if (patch.status === 'contacted') Object.assign(patch, { contactedAt: new Date().toISOString(), contactedBy: 'dashboard' });
-    return must(store.update('leads', req.params.id, patch));
+    const lead = must(store.update('leads', req.params.id, patch));
+    hub.syncLead(lead);
+    return lead;
+  }));
+  // Nhân viên tự nhập khách sau khi tư vấn (gọi điện, gặp trực tiếp...)
+  r.post('/leads', wrap((req) => {
+    const b = req.body || {};
+    const phone = String(b.phone || '').replace(/[\s.()-]/g, '');
+    if (!/^(0|\+84)\d{9,10}$/.test(phone)) throw new Error('Số điện thoại chưa hợp lệ');
+    if (!String(b.contactName || '').trim()) throw new Error('Thiếu tên khách hàng');
+    const lead = store.insert('leads', {
+      status: 'new', channel: 'manual', conversationId: null, segment: b.segment || 'other',
+      contactName: String(b.contactName).trim(), phone, email: b.email || '', address: b.address || '', area: b.area || '', needs: b.needs || '', note: b.note || '',
+    });
+    hub.onLead(lead);
+    return lead;
+  }));
+  r.post('/leads/:id/crm', wrap(async (req) => {
+    if (!hub.crm?.enabled()) throw new Error('Chưa bật CRM (Cài đặt → CRM Lark Base)');
+    const lead = must(store.get('leads', req.params.id));
+    return (await hub.crm.sync(lead)) || must(null, store.get('leads', lead.id).crmError || 'Gửi CRM thất bại');
+  }));
+
+  // ---- CRM Lark Base ----
+  r.post('/crm/fields', wrap(async (req) => {
+    if (!hub.crm) throw new Error('CRM chưa sẵn sàng');
+    const fields = await hub.crm.listFields(req.body.baseUrl);
+    return { fields, attrs: LEAD_ATTRS, guess: guessMap(fields) };
   }));
   r.delete('/leads/:id', wrap((req) => ({ ok: must(store.remove('leads', req.params.id)) })));
 
@@ -218,7 +247,12 @@ export function adminRoutes({ hub }) {
 
   // ---- cài đặt & tự học ----
   r.get('/settings', wrap(() => store.settings));
-  r.put('/settings', wrap((req) => store.updateSettings(req.body || {})));
+  r.put('/settings', wrap((req) => {
+    store.updateSettings(req.body || {});
+    // Bảng ghép cột CRM thay thế toàn bộ (để bỏ được cột đã chọn trước đó)
+    if (req.body?.crm?.fieldMap) { store.data.settings.crm.fieldMap = req.body.crm.fieldMap; store.save(); }
+    return store.settings;
+  }));
   r.post('/learning/run', wrap(() => runLearningCycle({ llm: hub.llm, store, hooks: hub.learningHooks() })));
 
   return r;

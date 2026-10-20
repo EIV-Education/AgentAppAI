@@ -21,13 +21,31 @@ export function parseEvent(body) {
 }
 
 let cached = { token: null, exp: 0 };
-async function tenantToken() {
+export async function tenantToken() {
   if (cached.token && Date.now() < cached.exp) return cached.token;
   const data = await postJson(`${config.lark.domain}/open-apis/auth/v3/tenant_access_token/internal`, {
     app_id: config.lark.appId, app_secret: config.lark.appSecret,
   });
   cached = { token: data.tenant_access_token, exp: Date.now() + (data.expire - 120) * 1000 };
   return cached.token;
+}
+
+// Gọi Open API của Lark (tenant token), báo lỗi rõ ràng khi code != 0
+export async function larkApi(method, path, body) {
+  if (!config.lark.appId || !config.lark.appSecret) throw new Error('Chưa cấu hình LARK_APP_ID / LARK_APP_SECRET trong .env');
+  const token = await tenantToken();
+  const res = await fetch(`${config.lark.domain}${path}`, {
+    method,
+    headers: { 'content-type': 'application/json; charset=utf-8', authorization: `Bearer ${token}` },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  const data = await res.json().catch(() => ({}));
+  if (data.code !== 0) {
+    const hint = data.code === 91403 || res.status === 403
+      ? ' — ứng dụng Lark chưa được thêm vào Base này (Base → … → Thêm ứng dụng tài liệu, quyền "Có thể chỉnh sửa")' : '';
+    throw new Error(`Lark lỗi ${data.code ?? res.status}: ${data.msg || res.statusText}${hint}`);
+  }
+  return data.data;
 }
 
 export const lark = {
