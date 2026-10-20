@@ -141,3 +141,10 @@ test('Zalo OAuth: tạo link có PKCE, callback đổi code lấy token và lưu
     Object.assign(config.zalo, old);
   }
 });
+
+test('/baocao ở chế độ khách tiềm năng không hiện dòng đơn nháp/doanh số', async () => {
+  const { hub } = eivHub();
+  const r = await handleCommand(hub, '/baocao');
+  assert.doesNotMatch(r, /Đơn nháp/);
+  assert.match(r, /Khách tiềm năng/);
+});
