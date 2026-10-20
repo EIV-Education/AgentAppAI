@@ -382,6 +382,12 @@ async function loadSettings() {
     <div><button class="primary">Lưu cài đặt</button></div>`;
   const profiles = await api('/profiles');
   $('#profiles').innerHTML = profiles.map((p) => `<div class="row"><b>${esc(p.name)}</b><span class="muted small">${esc(p.description)}</span><button class="primary" data-profile="${esc(p.id)}">Nạp gói này</button></div>`).join('') || '<p class="muted">Chưa có gói nào.</p>';
+  const zo = await api('/zalo/owners');
+  $('#zaloOwners').innerHTML = [
+    ...zo.fromEnv.map((id) => `<div class="row"><span>✅ ${esc(id)}</span><span class="muted small">(trong file .env)</span></div>`),
+    ...zo.fromDashboard.map((id) => `<div class="row"><span>✅ ${esc(id)}</span><button class="danger" data-zremove="${esc(id)}">Bỏ quyền</button></div>`),
+    ...zo.requests.map((q) => `<div class="row"><span>🙋 ${esc(q.id)}</span><span class="muted small">gõ "${esc(q.text)}" lúc ${time(q.at)}</span><button class="primary" data-zadd="${esc(q.id)}">Cấp quyền</button></div>`),
+  ].join('') || '<p class="muted small">Chưa có ai. Dùng Zalo cá nhân nhắn /baocao cho OA, rồi tải lại trang này để cấp quyền.</p>';
   $('#zaloConnect').href = `/api/admin/zalo/connect?token=${encodeURIComponent(TOKEN)}`;
   $('#embedCode').textContent = `<script src="${location.origin}/widget.js" defer></script>`;
   const o = await api('/overview');
@@ -394,6 +400,11 @@ async function loadSettings() {
     o.setup.publicUrl !== location.origin ? `⚠️ PUBLIC_URL trong .env (${o.setup.publicUrl}) khác địa chỉ đang mở (${location.origin})` : '',
   ].filter(Boolean).join('\n\n');
 }
+$('#zaloOwners').onclick = run(async (e) => {
+  const d = e.target.dataset;
+  if (d.zadd) { await api('/zalo/owners', { method: 'POST', body: { id: d.zadd } }); toast('Đã cấp quyền. Nhắn /help cho OA để thử.'); loadSettings(); }
+  if (d.zremove && confirm('Bỏ quyền điều khiển của ID này?')) { await api('/zalo/owners', { method: 'POST', body: { id: d.zremove, remove: true } }); loadSettings(); }
+});
 $('#profiles').onclick = run(async (e) => {
   const id = e.target.dataset.profile;
   if (!id || !confirm('Nạp gói này sẽ thay toàn bộ Catalog và kiến thức mẫu hiện tại. Tiếp tục?')) return;

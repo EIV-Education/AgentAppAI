@@ -47,6 +47,7 @@ export function defaultSettings() {
       exampleMinScore: 8,
       autoApproveExamples: true, // false: mẫu mới chờ duyệt trong tab Bài học
     },
+    zaloOwnerIds: [], // ID Zalo được điều khiển trợ lý (ngoài ZALO_OWNER_IDS trong .env)
     notifyOnNewOrder: true,
     notifyOnNewLead: true,
     notifyOnEscalation: true,

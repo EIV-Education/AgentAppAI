@@ -65,7 +65,7 @@ export function adminRoutes({ hub }) {
         zalo: hub.channels.zalo?.enabled?.() || false,
         web: true,
         lark: !!(config.lark.appId && config.lark.ownerChatIds.length),
-        zaloOwners: config.zalo.ownerIds.length,
+        zaloOwners: hub.channels.zalo?.ownerIds ? hub.channels.zalo.ownerIds().length : config.zalo.ownerIds.length,
         ai: !!hub.llm,
       },
       setup: {
@@ -136,6 +136,23 @@ export function adminRoutes({ hub }) {
     return must(store.update('leads', req.params.id, patch));
   }));
   r.delete('/leads/:id', wrap((req) => ({ ok: must(store.remove('leads', req.params.id)) })));
+
+  // ---- quyền điều khiển qua Zalo ----
+  r.get('/zalo/owners', wrap(() => ({
+    fromEnv: config.zalo.ownerIds,
+    fromDashboard: store.settings.zaloOwnerIds || [],
+    requests: (store.data.integrations.zaloOwnerRequests || []).filter((q) => !hub.channels.zalo?.isOwner?.(q.id)),
+  })));
+  r.post('/zalo/owners', wrap((req) => {
+    const id = String(req.body.id || '').trim();
+    if (!/^\d{5,30}$/.test(id)) throw new Error('ID Zalo không hợp lệ');
+    const cur = new Set(store.settings.zaloOwnerIds || []);
+    if (req.body.remove) cur.delete(id); else cur.add(id);
+    store.updateSettings({ zaloOwnerIds: [...cur] });
+    store.data.integrations.zaloOwnerRequests = (store.data.integrations.zaloOwnerRequests || []).filter((q) => q.id !== id);
+    store.save();
+    return { ok: true, zaloOwnerIds: [...cur] };
+  }));
 
   // ---- kết nối Zalo OA (OAuth) ----
   r.get('/zalo/connect', wrap((req, res) => res.redirect(hub.channels.zalo.authorizeUrl())));

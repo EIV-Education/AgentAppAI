@@ -79,3 +79,38 @@ test('Web chat + dashboard API', async () => {
     assert.equal(t.store.get('products', 'AT01').price, 209000);
   } finally { t.close(); }
 });
+
+test('Zalo: người chưa có quyền gõ lệnh -> không đưa cho AI, chờ cấp quyền; cấp xong thì điều khiển được', async () => {
+  const { createZalo } = await import('../src/channels/zalo.js');
+  const store = seededStore();
+  const sent = [];
+  const zalo = createZalo(store);
+  zalo.send = async (id, t) => { sent.push({ id, text: t }); };
+  const llm = fakeLLM([text('Dạ em chào anh')]);
+  const { app } = createApp({ store, llm, channels: { zalo }, notifier: null });
+  const server = app.listen(0);
+  await new Promise((r) => server.once('listening', r));
+  const base = `http://127.0.0.1:${server.address().port}`;
+  const auth = { authorization: `Bearer ${config.adminToken}` };
+  try {
+    await post(`${base}/webhooks/zalo`, { event_name: 'user_send_text', sender: { id: '999888777' }, message: { text: '/baocao', msg_id: 'a1' } });
+    await wait();
+    assert.match(sent.at(-1).text, /chưa có quyền/);
+    assert.equal(llm.calls.length, 0);
+    assert.equal(store.all('messages').length, 0);
+
+    const owners = await (await fetch(`${base}/api/admin/zalo/owners`, { headers: auth })).json();
+    assert.equal(owners.requests[0].id, '999888777');
+    await post(`${base}/api/admin/zalo/owners`, { id: '999888777' }, auth);
+
+    await post(`${base}/webhooks/zalo`, { event_name: 'user_send_text', sender: { id: '999888777' }, message: { text: '/baocao', msg_id: 'a2' } });
+    await wait();
+    assert.match(sent.at(-1).text, /Hôm nay/);
+    assert.equal((await (await fetch(`${base}/api/admin/zalo/owners`, { headers: auth })).json()).requests.length, 0);
+
+    // Mã cảm xúc của Zalo (/-strong) từ khách vẫn là tin nhắn bình thường
+    await post(`${base}/webhooks/zalo`, { event_name: 'user_send_text', sender: { id: '111' }, message: { text: '/-strong', msg_id: 'a3' } });
+    await wait();
+    assert.equal(llm.calls.length, 1);
+  } finally { server.close(); }
+});

@@ -3,7 +3,7 @@ import { config } from '../config.js';
 import * as fb from '../channels/facebook.js';
 import * as zl from '../channels/zalo.js';
 import { parseEvent as parseLark } from '../channels/lark.js';
-import { handleCommand } from '../control/commands.js';
+import { handleCommand, isCommand } from '../control/commands.js';
 
 // Webhook của Facebook, Zalo OA và Lark. Luôn trả 200 ngay rồi xử lý nền để nền tảng không gửi lại.
 export function webhookRoutes({ hub, zalo, lark, facebook }) {
@@ -63,6 +63,13 @@ export function webhookRoutes({ hub, zalo, lark, facebook }) {
         if (zalo.isOwner(m.externalId) && text.startsWith('/')) {
           const reply = await runCmd(text, `zalo:${m.externalId}`);
           return zalo.send(m.externalId, reply);
+        }
+        // Gõ lệnh nhưng chưa có quyền: không đưa cho AI, ghi lại để chủ shop cấp quyền trên dashboard
+        if (isCommand(text)) {
+          const reqs = (hub.store.data.integrations.zaloOwnerRequests ||= []);
+          if (!reqs.some((r) => r.id === m.externalId)) reqs.push({ id: m.externalId, text, at: new Date().toISOString() });
+          hub.store.save();
+          return zalo.send(m.externalId, `Tài khoản Zalo này chưa có quyền điều khiển trợ lý (mã ${m.externalId}). Vào dashboard → Cài đặt → "Quyền điều khiển qua Zalo" để cấp quyền.`);
         }
         await hub.receive({ channel: 'zalo', ...m });
       })().catch((err) => console.error('[zalo]', err));

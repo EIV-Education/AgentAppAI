@@ -92,7 +92,9 @@ export function createZalo(store) {
   return {
     name: 'zalo',
     enabled: () => !!tokens().accessToken,
-    isOwner: (userId) => config.zalo.ownerIds.includes(String(userId)),
+    // Chủ shop: ID trong .env (ZALO_OWNER_IDS) hoặc được cấp quyền trên dashboard
+    ownerIds: () => [...new Set([...config.zalo.ownerIds, ...(store.settings.zaloOwnerIds || [])])],
+    isOwner: (userId) => config.zalo.ownerIds.includes(String(userId)) || (store.settings.zaloOwnerIds || []).includes(String(userId)),
     refresh,
     authorizeUrl,
     handleCallback,

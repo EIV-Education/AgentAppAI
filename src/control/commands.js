@@ -23,6 +23,16 @@ export const HELP = `Lệnh điều khiển trợ lý:
 
 const isToday = (iso) => iso && new Date(iso).toDateString() === new Date().toDateString();
 
+const KNOWN = new Set(['help', 'huongdan', 'hd', 'tamdung', 'pause', 'tieptuc', 'resume', 'tl', 'reply', 'cho', 'pending', 'don', 'orders',
+  'lead', 'leads', 'khach', 'lienhe', 'contacted', 'duyet', 'approve', 'huy', 'reject', 'xem', 'view', 'cham', 'grade', 'diem', 'rate',
+  'day', 'teach', 'baocao', 'report']);
+const cmdName = (text) => (String(text).trim().match(/^\/([^\s]+)/)?.[1] || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd');
+
+// Tin nhắn có phải lệnh điều khiển không (phân biệt với mã cảm xúc của Zalo như /-strong, /-heart)
+export function isCommand(text) {
+  return KNOWN.has(cmdName(text));
+}
+
 export async function handleCommand(hub, rawText, { by = 'owner', minutes = 30 } = {}) {
   const text = rawText.trim();
   if (!text.startsWith('/')) return null;
