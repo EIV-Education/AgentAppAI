@@ -36,7 +36,7 @@ test('đoán cột theo tên và chuyển giá trị theo loại cột', () => {
   assert.equal(map.createdAt, 'Ngày nhận');
   const f = buildFields({ id: 'KH1', contactName: 'Lan', phone: '0912345678', needs: 'bé 6 tuổi', area: 'Hà Nội', channel: 'zalo', createdAt: '2026-10-20T03:00:00Z' }, map, FIELDS);
   assert.equal(f['Địa chỉ'], 'Hà Nội'); // chưa có địa chỉ cụ thể -> dùng khu vực
-  assert.equal(f['Nguồn'], 'Trợ lý AI – Zalo');
+  assert.equal(f['Nguồn'], 'Zalo');
   assert.equal(f['Ngày nhận'], Date.parse('2026-10-20T03:00:00Z'));
   assert.ok(!('Người tạo' in f));
 });
@@ -89,4 +89,28 @@ test('CRM chưa bật thì không gọi Lark', async () => {
   const crm = createCrm({ store: h.store, api });
   assert.equal(await crm.sync({ id: 'KH1' }), null);
   assert.equal(calls.length, 0);
+});
+
+test('tên khách: cá nhân dùng tên Zalo/Facebook; trường/trung tâm dùng tên trường, người liên hệ là tên Zalo', async () => {
+  const fields = [
+    { field_name: 'Tên khách hàng', type: 1 }, { field_name: 'Người liên hệ', type: 1 }, { field_name: 'Trạng thái liên hệ', type: 3 },
+    { field_name: 'Số điện thoại', type: 13 }, { field_name: 'Nguồn', type: 3 },
+  ];
+  const map = guessMap(fields);
+  assert.equal(map.contactPerson, 'Người liên hệ');
+  assert.equal(map.status, 'Trạng thái liên hệ');
+  assert.equal(map.contactName, 'Tên khách hàng');
+
+  const h = makeHub();
+  const fbConv = h.hub.getOrCreateConversation('facebook', 'p1', 'Trần Thu Hà');
+  const zConv = h.hub.getOrCreateConversation('zalo', 'z1', 'Cô Mai Anh');
+  const r1 = await runTool('create_lead', { segment: 'kids', phone: '0912345678', needs: 'bé 6 tuổi', contact_name: 'Hà' }, { store: h.store, conversation: fbConv, hooks: {} });
+  const r2 = await runTool('create_lead', { segment: 'school_center', phone: '0987654321', needs: 'cần 2 GV cho tiểu học', organization: 'Trường Tiểu học Ánh Dương' }, { store: h.store, conversation: zConv, hooks: {} });
+  const personal = buildFields(h.store.get('leads', r1.lead_id), map, fields);
+  assert.equal(personal['Tên khách hàng'], 'Trần Thu Hà'); // ưu tiên tên Facebook
+  assert.equal(personal['Nguồn'], 'Facebook');
+  const school = buildFields(h.store.get('leads', r2.lead_id), map, fields);
+  assert.equal(school['Tên khách hàng'], 'Trường Tiểu học Ánh Dương');
+  assert.equal(school['Người liên hệ'], 'Cô Mai Anh');
+  assert.equal(school['Nguồn'], 'Zalo');
 });

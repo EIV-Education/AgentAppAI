@@ -133,7 +133,7 @@ export function adminRoutes({ hub }) {
     const patch = {};
     if (['new', 'contacted', 'won', 'lost'].includes(req.body.status)) patch.status = req.body.status;
     if (req.body.note != null) patch.note = String(req.body.note);
-    for (const k of ['contactName', 'phone', 'email', 'area', 'address', 'needs']) if (req.body[k] != null) patch[k] = String(req.body[k]).trim();
+    for (const k of ['contactName', 'organization', 'segment', 'phone', 'email', 'area', 'address', 'needs']) if (req.body[k] != null) patch[k] = String(req.body[k]).trim();
     if (patch.status === 'contacted') Object.assign(patch, { contactedAt: new Date().toISOString(), contactedBy: 'dashboard' });
     const lead = must(store.update('leads', req.params.id, patch));
     hub.syncLead(lead);
@@ -147,7 +147,7 @@ export function adminRoutes({ hub }) {
     if (!String(b.contactName || '').trim()) throw new Error('Thiếu tên khách hàng');
     const lead = store.insert('leads', {
       status: 'new', channel: 'manual', conversationId: null, segment: b.segment || 'other',
-      contactName: String(b.contactName).trim(), phone, email: b.email || '', address: b.address || '', area: b.area || '', needs: b.needs || '', note: b.note || '',
+      contactName: String(b.contactName).trim(), organization: b.organization || '', phone, email: b.email || '', address: b.address || '', area: b.area || '', needs: b.needs || '', note: b.note || '',
     });
     hub.onLead(lead);
     return lead;

@@ -180,6 +180,7 @@ async function loadLeads() {
   $('#leads').innerHTML = leads.map((l) => `
     <div class="card">
       <div class="row"><b>${l.id}</b><span class="ch ${l.channel}">${CH[l.channel]}</span><span class="tag">${SEG[l.segment] || esc(l.segment)}</span><span class="muted small">${time(l.createdAt)}${l.conversationId ? ` · ${l.conversationId}` : ''}</span></div>
+      ${l.organization ? `<div><b>🏫 ${esc(l.organization)}</b></div>` : ''}
       <div><b>${esc(l.contactName || 'Khách')}</b> – <a href="tel:${esc(l.phone)}">${esc(l.phone)}</a>${l.email ? ` – ${esc(l.email)}` : ''}</div>
       ${l.address || l.area ? `<div class="muted">Địa chỉ: ${esc([l.address, l.area].filter(Boolean).join(' – '))}</div>` : ''}
       <div>${esc(l.needs)}</div>
@@ -190,7 +191,7 @@ async function loadLeads() {
     </div>`).join('') || '<p class="muted">Không có khách nào.</p>';
 }
 $('#lStatus').onchange = run(loadLeads);
-const LEAD_FIELDS = [['contactName', 'Tên khách hàng', 'text'], ['phone', 'Số điện thoại / Zalo', 'text'], ['needs', 'Nhu cầu / mục đích', 'textarea'], ['address', 'Địa chỉ', 'text'], ['area', 'Khu vực', 'text'], ['email', 'Email', 'text'], ['note', 'Ghi chú', 'textarea']];
+const LEAD_FIELDS = [['contactName', 'Tên khách / người liên hệ', 'text'], ['organization', 'Tên trường / trung tâm / doanh nghiệp (nếu có)', 'text'], ['phone', 'Số điện thoại / Zalo', 'text'], ['needs', 'Nhu cầu / mục đích', 'textarea'], ['address', 'Địa chỉ', 'text'], ['area', 'Khu vực', 'text'], ['email', 'Email', 'text'], ['note', 'Ghi chú', 'textarea']];
 $('#newLead').onclick = () => dialog('Thêm khách sau khi tư vấn', LEAD_FIELDS, run(async (v) => {
   const l = await api('/leads', { method: 'POST', body: v });
   toast(`Đã thêm ${l.id}${l.crmError ? '' : ', đang đẩy lên CRM…'}`);
@@ -216,7 +217,7 @@ $('#leads').onclick = run(async (e) => {
 });
 $('#exportLeads').onclick = run(async () => {
   const all = await api('/leads');
-  const cols = ['id', 'createdAt', 'status', 'segment', 'contactName', 'phone', 'email', 'area', 'needs', 'note', 'channel', 'conversationId'];
+  const cols = ['id', 'createdAt', 'status', 'segment', 'organization', 'contactName', 'phone', 'email', 'area', 'needs', 'note', 'channel', 'conversationId'];
   const cell = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
   const csv = '\uFEFF' + [cols.join(','), ...all.map((l) => cols.map((c) => cell(c === 'segment' ? SEG[l[c]] || l[c] : c === 'status' ? L_STATUS[l[c]] : l[c])).join(','))].join('\n');
   const a = document.createElement('a');

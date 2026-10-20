@@ -91,7 +91,8 @@ export const TOOL_DEFS = [
       type: 'object',
       properties: {
         segment: { type: 'string', enum: ['school_center', 'business', 'kids', 'adult', 'other'], description: 'Nhóm khách: trường học/trung tâm, doanh nghiệp, cá nhân trẻ em, cá nhân người đi làm, khác' },
-        contact_name: { type: 'string' },
+        contact_name: { type: 'string', description: 'Tên người liên hệ khách tự giới thiệu (hệ thống ưu tiên tên Zalo/Facebook nếu có)' },
+        organization: { type: 'string', description: 'Tên trường học / trung tâm / doanh nghiệp (bắt buộc hỏi với khách trường học, trung tâm)' },
         phone: { type: 'string', description: 'Số điện thoại hoặc Zalo' },
         email: { type: 'string' },
         area: { type: 'string', description: 'Tỉnh/thành, khu vực' },
@@ -225,7 +226,9 @@ export async function runTool(name, input, ctx) {
       const email = String(input.email || '').trim();
       if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { error: 'Email chưa đúng định dạng, hãy hỏi lại khách.' };
       const fields = {
-        segment: input.segment, contactName: input.contact_name || ctx.conversation.customerName || '', phone,
+        // Người liên hệ: tên Zalo/Facebook của tài khoản đang nhắn; web chat không có thì dùng tên khách tự giới thiệu
+        segment: input.segment, contactName: store.get('conversations', ctx.conversation.id)?.customerName || input.contact_name || '', phone,
+        organization: input.organization || '',
         email, area: input.area || '', address: input.address || '', needs: input.needs || '', serviceId: input.service_id || '',
       };
       const existing = store.find('leads', (l) => l.phone === phone && l.conversationId === ctx.conversation.id)[0];

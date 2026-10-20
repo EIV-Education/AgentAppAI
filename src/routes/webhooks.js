@@ -71,7 +71,9 @@ export function webhookRoutes({ hub, zalo, lark, facebook }) {
           hub.store.save();
           return zalo.send(m.externalId, `Tài khoản Zalo này chưa có quyền điều khiển trợ lý (mã ${m.externalId}). Vào dashboard → Cài đặt → "Quyền điều khiển qua Zalo" để cấp quyền.`);
         }
-        await hub.receive({ channel: 'zalo', ...m });
+        const known = hub.store.find('conversations', (c) => c.channel === 'zalo' && c.externalId === String(m.externalId))[0];
+        const name = known?.customerName || (zalo.enabled() && zalo.profileName ? await zalo.profileName(m.externalId) : null);
+        await hub.receive({ channel: 'zalo', ...m, customerName: name });
       })().catch((err) => console.error('[zalo]', err));
     }
   });

@@ -89,8 +89,23 @@ export function createZalo(store) {
     return res.json();
   }
 
+  // Tên hiển thị Zalo của khách (cần quyền "quản lý thông tin người dùng" khi cấp quyền OA)
+  async function profileName(userId) {
+    const get = () => fetch(`https://openapi.zalo.me/v3.0/oa/user/detail?data=${encodeURIComponent(JSON.stringify({ user_id: String(userId) }))}`, {
+      headers: { access_token: tokens().accessToken },
+    }).then((r) => r.json());
+    try {
+      let data = await get();
+      if (data.error === -216 || data.error === -124) { await refresh(); data = await get(); }
+      return data.error === 0 ? data.data?.display_name || null : null;
+    } catch {
+      return null;
+    }
+  }
+
   return {
     name: 'zalo',
+    profileName,
     enabled: () => !!tokens().accessToken,
     // Chủ shop: ID trong .env (ZALO_OWNER_IDS) hoặc được cấp quyền trên dashboard
     ownerIds: () => [...new Set([...config.zalo.ownerIds, ...(store.settings.zaloOwnerIds || [])])],

@@ -4,7 +4,9 @@ import { normalize } from './catalog.js';
 // Đẩy khách tiềm năng lên CRM Lark Base (Bitable): mỗi khách là một dòng, cập nhật lại khi có thêm thông tin.
 
 export const LEAD_ATTRS = {
-  contactName: 'Tên khách hàng',
+  contactName: 'Tên khách hàng (cá nhân: tên Zalo/Facebook · trường/trung tâm/doanh nghiệp: tên đơn vị)',
+  contactPerson: 'Người liên hệ (tên Zalo/Facebook)',
+  organization: 'Tên trường / trung tâm / doanh nghiệp',
   phone: 'Số điện thoại / Zalo',
   needs: 'Nhu cầu / mục đích',
   address: 'Địa chỉ (hoặc khu vực nếu khách chưa cho địa chỉ)',
@@ -12,7 +14,7 @@ export const LEAD_ATTRS = {
   email: 'Email',
   segment: 'Nhóm khách',
   channel: 'Kênh liên hệ',
-  source: 'Nguồn (Trợ lý AI – kênh)',
+  source: 'Nguồn (Zalo / Facebook / Website)',
   status: 'Trạng thái',
   note: 'Ghi chú',
   createdAt: 'Ngày tạo',
@@ -24,6 +26,7 @@ const STATUS = { new: 'Mới', contacted: 'Đã liên hệ', won: 'Đã chốt',
 const CHANNEL = { facebook: 'Facebook', zalo: 'Zalo', web: 'Website', manual: 'Nhập tay' };
 
 // Loại cột Lark Base ghi được: 1 văn bản, 2 số, 3 chọn một, 4 chọn nhiều, 5 ngày, 7 checkbox, 13 điện thoại, 15 liên kết
+const ORG_SEGMENTS = new Set(['school_center', 'business']);
 const WRITABLE = new Set([1, 2, 3, 4, 5, 7, 13, 15]);
 
 export function parseBaseUrl(url = '') {
@@ -38,7 +41,9 @@ export function leadValue(lead, attr) {
     case 'address': return lead.address || lead.area || '';
     case 'segment': return SEGMENT[lead.segment] || lead.segment || '';
     case 'channel': return CHANNEL[lead.channel] || lead.channel || '';
-    case 'source': return `Trợ lý AI – ${CHANNEL[lead.channel] || lead.channel || ''}`;
+    case 'source': return CHANNEL[lead.channel] || lead.channel || '';
+    case 'contactName': return (ORG_SEGMENTS.has(lead.segment) && lead.organization) || lead.contactName || lead.organization || '';
+    case 'contactPerson': return lead.contactName || '';
     case 'status': return STATUS[lead.status] || lead.status || '';
     case 'createdAt': return lead.createdAt;
     case 'leadId': return lead.id;
@@ -72,6 +77,8 @@ export function buildFields(lead, fieldMap, larkFields) {
 
 // Đoán cột tương ứng theo tên (không dấu)
 const GUESS = [
+  ['contactPerson', /(nguoi lien he|ten lien he|contact person)/],
+  ['organization', /(ten truong|truong|trung tam|don vi|cong ty|doanh nghiep|to chuc)/],
   ['phone', /(sdt|so dien thoai|dien thoai|phone|zalo|so dt)/],
   ['email', /(email|mail)/],
   ['needs', /(nhu cau|muc dich|need|yeu cau)/],

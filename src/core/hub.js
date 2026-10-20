@@ -237,7 +237,7 @@ export class Hub {
     this.syncLead(lead);
     for (const fn of this.listeners) fn({ type: 'lead', lead });
     if (!this.store.settings.notifyOnNewLead) return;
-    await this.notify(`🎯 Khách tiềm năng ${lead.id} từ ${lead.conversationId ? `[${lead.conversationId}] ` : ''}${CHANNEL_LABEL[lead.channel]} – ${SEGMENT_LABEL[lead.segment] || lead.segment}\n${lead.contactName || 'Khách'} – ${lead.phone}${lead.email ? ` – ${lead.email}` : ''}${lead.address || lead.area ? `\nĐịa chỉ: ${lead.address || lead.area}` : ''}\nNhu cầu: ${lead.needs}\n→ Đã liên hệ: /lienhe ${lead.id}`);
+    await this.notify(`🎯 Khách tiềm năng ${lead.id} từ ${lead.conversationId ? `[${lead.conversationId}] ` : ''}${CHANNEL_LABEL[lead.channel]} – ${SEGMENT_LABEL[lead.segment] || lead.segment}\n${lead.organization ? `${lead.organization} – ` : ''}${lead.contactName || 'Khách'} – ${lead.phone}${lead.email ? ` – ${lead.email}` : ''}${lead.address || lead.area ? `\nĐịa chỉ: ${lead.address || lead.area}` : ''}\nNhu cầu: ${lead.needs}\n→ Đã liên hệ: /lienhe ${lead.id}`);
   }
 
   // Nhắn nhắc khách một lần khi khách im lặng sau câu trả lời của trợ lý (trong 23 giờ — giới hạn của Facebook)

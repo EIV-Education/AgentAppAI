@@ -114,3 +114,25 @@ test('Zalo: người chưa có quyền gõ lệnh -> không đưa cho AI, chờ 
     assert.equal(llm.calls.length, 1);
   } finally { server.close(); }
 });
+
+test('Zalo: lấy tên hiển thị của khách khi nhắn lần đầu', async () => {
+  const { createZalo } = await import('../src/channels/zalo.js');
+  const store = seededStore();
+  const zalo = createZalo(store);
+  zalo.enabled = () => true;
+  zalo.send = async () => {};
+  let calls = 0;
+  zalo.profileName = async (id) => { calls++; return id === 'u55' ? 'Nguyễn Thị Lan' : null; };
+  const { app } = createApp({ store, llm: fakeLLM([text('Dạ chào chị Lan'), text('Dạ')]), channels: { zalo }, notifier: null });
+  const server = app.listen(0);
+  await new Promise((r) => server.once('listening', r));
+  const base = `http://127.0.0.1:${server.address().port}`;
+  try {
+    await post(`${base}/webhooks/zalo`, { event_name: 'user_send_text', sender: { id: 'u55' }, message: { text: 'chào em', msg_id: 'n1' } });
+    await wait();
+    await post(`${base}/webhooks/zalo`, { event_name: 'user_send_text', sender: { id: 'u55' }, message: { text: 'cho chị hỏi', msg_id: 'n2' } });
+    await wait();
+    assert.equal(store.find('conversations', (c) => c.externalId === 'u55')[0].customerName, 'Nguyễn Thị Lan');
+    assert.equal(calls, 1); // đã có tên thì không gọi lại
+  } finally { server.close(); }
+});
