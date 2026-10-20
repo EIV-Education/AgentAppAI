@@ -100,6 +100,7 @@ export function createZalo(store) {
       if (data.error === -216 || data.error === -124) { await refresh(); data = await get(); }
       const name = data.error === 0 ? data.data?.display_name || data.data?.user_alias || null : null;
       lastProfileError = name ? null : `Zalo trả về lỗi ${data.error}: ${data.message || 'không có tên hiển thị'}`;
+      if (data.error === -212) lastProfileError += ' — Ứng dụng chưa đăng ký API lấy thông tin người dùng: developers.zalo.me → ứng dụng → Đăng ký sử dụng API → bật API thông tin người dùng của Official Account, rồi bấm "Kết nối Zalo OA" lại';
       if (!name) console.warn(`[zalo] không lấy được tên của ${userId}: ${lastProfileError}`);
       return name;
     } catch (err) {
