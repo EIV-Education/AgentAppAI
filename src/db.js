@@ -5,19 +5,25 @@ import { ROOT } from './config.js';
 // Kho dữ liệu JSON đơn giản: đọc toàn bộ vào bộ nhớ, ghi xuống đĩa theo lô.
 // Đủ cho một shop vài nghìn hội thoại/tháng; khi lớn hơn hãy chuyển sang Postgres/SQLite.
 
-const COLLECTIONS = ['products', 'conversations', 'messages', 'orders', 'knowledge', 'lessons'];
-const PREFIX = { conversations: 'C', messages: 'M', orders: 'D', knowledge: 'K', lessons: 'L', products: 'SP' };
+const COLLECTIONS = ['products', 'conversations', 'messages', 'orders', 'leads', 'knowledge', 'lessons'];
+const PREFIX = { conversations: 'C', messages: 'M', orders: 'D', leads: 'KH', knowledge: 'K', lessons: 'L', products: 'SP' };
 
 export function defaultSettings() {
   return {
     botPaused: false,
+    // 'order': shop bán hàng (báo giá, đơn nháp, phí ship) · 'lead': thu thập nhu cầu + liên hệ, chuyển chuyên viên tư vấn
+    salesMode: 'order',
     shop: {
       name: 'Shop của bạn',
       description: '',
       hotline: '',
       workingHours: '8:00 - 21:00 hằng ngày',
       tone: 'Thân thiện, xưng "em", gọi khách là "anh/chị", ngắn gọn, dùng tiếng Việt có dấu.',
+      greeting: '', // lời chào đầu tiên trên widget web
+      playbook: '', // kịch bản tư vấn: các bước hỏi, mẫu câu trả lời
     },
+    // Nhắn nhắc khách một lần khi khách im lặng sau câu trả lời của trợ lý
+    followUp: { enabled: false, afterMinutes: 60, text: '' },
     policies: {
       shipping: '',
       returns: '',
@@ -35,6 +41,7 @@ export function defaultSettings() {
       lowScoreAlert: 6, // điểm AI chấm < ngưỡng này sẽ báo chủ shop
     },
     notifyOnNewOrder: true,
+    notifyOnNewLead: true,
     notifyOnEscalation: true,
   };
 }

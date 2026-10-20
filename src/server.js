@@ -79,6 +79,8 @@ if (process.argv[1] && path.resolve(process.argv[1]) === path.join(ROOT, 'src', 
     .then((r) => r.graded && console.log(`[tự học] đã chấm ${r.graded} hội thoại`))
     .catch((err) => console.warn('[tự học]', err.message));
   setInterval(cycle, config.learningIntervalMinutes * 60_000).unref();
+  // Nhắn nhắc khách im lặng (bật/tắt trong Cài đặt)
+  setInterval(() => hub.runFollowUps().catch((err) => console.warn('[nhắc khách]', err.message)), 5 * 60_000).unref();
 
   const shutdown = () => { store.flush(); process.exit(0); };
   process.on('SIGINT', shutdown);

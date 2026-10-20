@@ -4,6 +4,7 @@ import { config } from '../config.js';
 import { formatVnd } from '../catalog.js';
 
 const CHANNEL_LABEL = { facebook: 'Facebook', zalo: 'Zalo', web: 'Web' };
+export const SEGMENT_LABEL = { school_center: 'Trường học/Trung tâm', business: 'Doanh nghiệp', kids: 'Cá nhân – Trẻ em', adult: 'Cá nhân – Người đi làm', other: 'Khác' };
 
 // Trung tâm xử lý: nhận tin từ mọi kênh, quyết định AI trả lời hay chờ người, gửi thông báo cho chủ shop.
 export class Hub {
@@ -98,7 +99,7 @@ export class Hub {
       if (!this.llm) throw new Error('Chưa cấu hình ANTHROPIC_API_KEY');
       result = await generateReply({
         llm: this.llm, store: this.store, conversation: conv, history: this.history(conv.id),
-        hooks: { onEscalate: (c, info) => this.onEscalate(c, info), onOrder: (o) => this.onOrder(o) },
+        hooks: { onEscalate: (c, info) => this.onEscalate(c, info), onOrder: (o) => this.onOrder(o), onLead: (l) => this.onLead(l) },
       });
     } catch (err) {
       console.error(`[hub] AI lỗi ở ${conv.id}:`, err.message);
@@ -212,6 +213,33 @@ export class Hub {
     if (!this.store.settings.notifyOnNewOrder) return;
     const items = order.items.map((i) => `• ${i.name}${i.variant ? ` (${i.variant})` : ''} x${i.quantity}: ${formatVnd(i.total)}`).join('\n');
     await this.notify(`🛒 Đơn nháp ${order.id} từ [${order.conversationId}] ${CHANNEL_LABEL[order.channel]}\n${items}\nShip: ${formatVnd(order.shippingFee)} – Tổng: ${formatVnd(order.total)}\n${order.customer.name} – ${order.customer.phone}\n${order.customer.address}${order.note ? `\nGhi chú: ${order.note}` : ''}\n→ /duyet ${order.id} hoặc /huy ${order.id} <lý do>`);
+  }
+
+  async onLead(lead) {
+    for (const fn of this.listeners) fn({ type: 'lead', lead });
+    if (!this.store.settings.notifyOnNewLead) return;
+    await this.notify(`🎯 Khách tiềm năng ${lead.id} từ [${lead.conversationId}] ${CHANNEL_LABEL[lead.channel]} – ${SEGMENT_LABEL[lead.segment] || lead.segment}\n${lead.contactName || 'Khách'} – ${lead.phone}${lead.email ? ` – ${lead.email}` : ''}${lead.area ? `\nKhu vực: ${lead.area}` : ''}\nNhu cầu: ${lead.needs}\n→ Đã liên hệ: /lienhe ${lead.id}`);
+  }
+
+  // Nhắn nhắc khách một lần khi khách im lặng sau câu trả lời của trợ lý (trong 23 giờ — giới hạn của Facebook)
+  async runFollowUps(now = Date.now()) {
+    const f = this.store.settings.followUp;
+    if (!f?.enabled || !f.text || this.store.settings.botPaused) return 0;
+    let sent = 0;
+    for (const conv of this.store.all('conversations')) {
+      const msgs = this.store.find('messages', (m) => m.conversationId === conv.id);
+      const last = msgs[msgs.length - 1];
+      if (!last || last.role !== 'bot' || last.followUp) continue;
+      if (!msgs.some((m) => m.role === 'customer')) continue;
+      const idle = now - new Date(last.createdAt).getTime();
+      if (idle < f.afterMinutes * 60_000 || idle > 23 * 3600_000) continue;
+      if (!this.aiActive(conv) || conv.needsHuman) continue;
+      if (this.store.find('leads', (l) => l.conversationId === conv.id).length) continue;
+      this.addMessage(conv, 'bot', f.text, { followUp: true });
+      await this.deliver(conv, f.text);
+      sent++;
+    }
+    return sent;
   }
 
   on(fn) {

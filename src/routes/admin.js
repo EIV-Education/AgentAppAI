@@ -4,6 +4,7 @@ import { config } from '../config.js';
 import { handleCommand } from '../control/commands.js';
 import { addLessonFromFeedback, rateConversation, runLearningCycle } from '../agent/learning.js';
 import { parseProductsCsv } from '../importers.js';
+import { listProfiles, loadProfile, applyProfile } from '../profiles.js';
 
 // API cho dashboard quản trị. Bảo vệ bằng ADMIN_TOKEN (header Authorization: Bearer ... hoặc ?token=).
 export function adminRoutes({ hub }) {
@@ -51,6 +52,9 @@ export function adminRoutes({ hub }) {
       byChannel: Object.fromEntries(['facebook', 'zalo', 'web'].map((ch) => [ch, convs.filter((c) => c.channel === ch).length])),
       needsHuman: convs.filter((c) => c.needsHuman).length,
       pendingOrders: orders.filter((o) => o.status === 'pending').length,
+      salesMode: store.settings.salesMode,
+      leads: store.all('leads').length,
+      newLeads: store.find('leads', (l) => l.status === 'new').length,
       confirmedRevenue: orders.filter((o) => o.status === 'confirmed').reduce((a, o) => a + o.total, 0),
       avgScore: graded.length ? +(graded.reduce((a, c) => a + c.grade.score, 0) / graded.length).toFixed(1) : null,
       hallucinations: graded.filter((c) => c.grade.hallucination).length,
@@ -110,6 +114,24 @@ export function adminRoutes({ hub }) {
   })));
 
   r.post('/command', wrap(async (req) => ({ reply: await handleCommand(hub, String(req.body.text || ''), { by: 'dashboard', minutes: config.humanTakeoverMinutes }) })));
+
+  // ---- khách tiềm năng ----
+  r.get('/leads', wrap((req) => {
+    const list = req.query.status ? store.find('leads', (l) => l.status === req.query.status) : [...store.all('leads')];
+    return list.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  }));
+  r.put('/leads/:id', wrap((req) => {
+    const patch = {};
+    if (['new', 'contacted', 'won', 'lost'].includes(req.body.status)) patch.status = req.body.status;
+    if (req.body.note != null) patch.note = String(req.body.note);
+    if (patch.status === 'contacted') Object.assign(patch, { contactedAt: new Date().toISOString(), contactedBy: 'dashboard' });
+    return must(store.update('leads', req.params.id, patch));
+  }));
+  r.delete('/leads/:id', wrap((req) => ({ ok: must(store.remove('leads', req.params.id)) })));
+
+  // ---- gói dữ liệu dựng sẵn ----
+  r.get('/profiles', wrap(() => listProfiles()));
+  r.post('/profiles/:id/apply', wrap((req) => applyProfile(store, loadProfile(req.params.id))));
 
   // ---- đơn nháp ----
   r.get('/orders', wrap((req) => {

@@ -59,8 +59,9 @@ async function loadOverview() {
   $('#stats').innerHTML = [
     [o.conversations, `Hội thoại (FB ${o.byChannel.facebook} · Zalo ${o.byChannel.zalo} · Web ${o.byChannel.web})`],
     [o.needsHuman, 'Đang chờ bạn'],
-    [o.pendingOrders, 'Đơn nháp chờ duyệt'],
-    [vnd(o.confirmedRevenue), 'Doanh số đã duyệt'],
+    ...(o.salesMode === 'lead'
+      ? [[o.newLeads, 'Khách tiềm năng chưa liên hệ'], [o.leads, 'Tổng khách tiềm năng']]
+      : [[o.pendingOrders, 'Đơn nháp chờ duyệt'], [vnd(o.confirmedRevenue), 'Doanh số đã duyệt']]),
     [o.avgScore ?? '–', `Điểm AI TB (${o.hallucinations} lần bịa)`],
     [`${dot(ch.facebook)} ${dot(ch.zalo)} ${dot(ch.web)} ${dot(ch.lark)}`, 'FB · Zalo · Web · Lark'],
   ].map(([b, s]) => `<div class="stat"><b>${esc(b)}</b><span>${esc(s)}</span></div>`).join('')
@@ -75,6 +76,9 @@ async function loadOverview() {
   const badge = (id, n) => { const el = $(id); el.textContent = n; el.classList.toggle('hidden', !n); };
   badge('#badgeHuman', o.needsHuman);
   badge('#badgeOrders', o.pendingOrders);
+  badge('#badgeLeads', o.newLeads);
+  // Chế độ khách tiềm năng thì ẩn tab Đơn nháp
+  document.querySelector('[data-tab=orders]').classList.toggle('hidden', o.salesMode === 'lead' && !o.pendingOrders);
   badge('#badgeKnow', o.knowledgePending);
 }
 
@@ -165,6 +169,48 @@ $('#orders').onclick = run(async (e) => {
   if (t.dataset.approve) { await api(`/orders/${t.dataset.approve}/approve`, { method: 'POST' }); toast('✅ Đã duyệt và báo khách'); refresh(); loadOrders(); }
   if (t.dataset.reject) dialog(`Huỷ đơn ${t.dataset.reject}`, [['reason', 'Lý do gửi cho khách (để trống nếu không muốn báo)', 'textarea']], run(async (v) => { await api(`/orders/${t.dataset.reject}/reject`, { method: 'POST', body: v }); refresh(); loadOrders(); }));
   if (t.dataset.ship) dialog('Sửa phí ship', [['shippingFee', 'Phí ship (VND)', 'number']], run(async (v) => { await api(`/orders/${t.dataset.ship}`, { method: 'PUT', body: v }); loadOrders(); }));
+});
+
+// ---------- khách tiềm năng ----------
+const SEG = { school_center: 'Trường học/Trung tâm', business: 'Doanh nghiệp', kids: 'Cá nhân – Trẻ em', adult: 'Cá nhân – Người đi làm', other: 'Khác' };
+const L_STATUS = { new: '🆕 Chưa liên hệ', contacted: '📞 Đã liên hệ', won: '✅ Đã chốt', lost: '✖ Không thành' };
+let leads = [];
+async function loadLeads() {
+  leads = await api(`/leads?status=${$('#lStatus').value}`);
+  $('#leads').innerHTML = leads.map((l) => `
+    <div class="card">
+      <div class="row"><b>${l.id}</b><span class="ch ${l.channel}">${CH[l.channel]}</span><span class="tag">${SEG[l.segment] || esc(l.segment)}</span><span class="muted small">${time(l.createdAt)} · ${l.conversationId}</span></div>
+      <div><b>${esc(l.contactName || 'Khách')}</b> – <a href="tel:${esc(l.phone)}">${esc(l.phone)}</a>${l.email ? ` – ${esc(l.email)}` : ''}</div>
+      ${l.area ? `<div class="muted">Khu vực: ${esc(l.area)}</div>` : ''}
+      <div>${esc(l.needs)}</div>
+      ${l.note ? `<div class="muted">Ghi chú: ${esc(l.note)}</div>` : ''}
+      <div class="row"><select data-lead="${l.id}">${Object.entries(L_STATUS).map(([k, v]) => `<option value="${k}" ${k === l.status ? 'selected' : ''}>${v}</option>`).join('')}</select>
+        <button data-note="${l.id}">Ghi chú</button><button data-conv="${l.conversationId}">Xem hội thoại</button></div>
+    </div>`).join('') || '<p class="muted">Không có khách nào.</p>';
+}
+$('#lStatus').onchange = run(loadLeads);
+$('#leads').onchange = run(async (e) => {
+  if (!e.target.dataset.lead) return;
+  await api(`/leads/${e.target.dataset.lead}`, { method: 'PUT', body: { status: e.target.value } });
+  loadLeads(); loadOverview();
+});
+$('#leads').onclick = run(async (e) => {
+  const d = e.target.dataset;
+  if (d.note) {
+    const l = leads.find((x) => x.id === d.note);
+    dialog(`Ghi chú ${l.id}`, [['note', 'Ghi chú (kết quả gọi điện, lịch hẹn...)', 'textarea', l.note]], run(async (v) => { await api(`/leads/${l.id}`, { method: 'PUT', body: v }); loadLeads(); }));
+  }
+  if (d.conv) { document.querySelector('[data-tab=inbox]').click(); openConv(d.conv); }
+});
+$('#exportLeads').onclick = run(async () => {
+  const all = await api('/leads');
+  const cols = ['id', 'createdAt', 'status', 'segment', 'contactName', 'phone', 'email', 'area', 'needs', 'note', 'channel', 'conversationId'];
+  const cell = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+  const csv = '\uFEFF' + [cols.join(','), ...all.map((l) => cols.map((c) => cell(c === 'segment' ? SEG[l[c]] || l[c] : c === 'status' ? L_STATUS[l[c]] : l[c])).join(','))].join('\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+  a.download = `khach-tiem-nang-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
 });
 
 // ---------- catalog ----------
@@ -263,6 +309,16 @@ async function loadSettings() {
   const s = await api('/settings');
   const f = (name, label, value, type = 'text') => `<label>${label}${type === 'textarea' ? `<textarea name="${name}" rows="3">${esc(value)}</textarea>` : type === 'checkbox' ? `<input type="checkbox" name="${name}" ${value ? 'checked' : ''}>` : `<input name="${name}" type="${type}" value="${esc(value)}">`}</label>`;
   $('#settingsForm').innerHTML = `
+    <fieldset><legend>Cách trợ lý làm việc</legend>
+      <label>Chế độ<select name="salesMode">
+        <option value="order" ${s.salesMode !== 'lead' ? 'selected' : ''}>Bán hàng: báo giá, lên đơn nháp, tính phí ship</option>
+        <option value="lead" ${s.salesMode === 'lead' ? 'selected' : ''}>Thu thập khách tiềm năng: không báo giá, xin SĐT/Zalo chuyển chuyên viên</option>
+      </select></label>
+      <label>Kịch bản tư vấn (các bước hỏi và mẫu câu trợ lý bám theo)<textarea name="shop.playbook" rows="12">${esc(s.shop.playbook)}</textarea></label>
+      ${f('shop.greeting', 'Lời chào trên chat website', s.shop.greeting, 'textarea')}
+      ${f('followUp.enabled', 'Nhắn nhắc khi khách im lặng (1 lần, chỉ khi khách chưa để lại SĐT)', s.followUp.enabled, 'checkbox')}
+      ${f('followUp.afterMinutes', 'Nhắc sau (phút)', s.followUp.afterMinutes, 'number')}
+      ${f('followUp.text', 'Nội dung tin nhắc', s.followUp.text, 'textarea')}</fieldset>
     <fieldset><legend>Thông tin shop</legend>
       ${f('shop.name', 'Tên shop', s.shop.name)}${f('shop.description', 'Giới thiệu ngắn', s.shop.description, 'textarea')}
       ${f('shop.hotline', 'Hotline', s.shop.hotline)}${f('shop.workingHours', 'Giờ làm việc', s.shop.workingHours)}
@@ -277,9 +333,12 @@ async function loadSettings() {
       ${f('learning.autoGrade', 'Tự động chấm điểm hội thoại đã kết thúc', s.learning.autoGrade, 'checkbox')}
       ${f('learning.autoApproveKnowledge', 'Tự dùng kiến thức rút ra từ câu trả lời của bạn (không cần duyệt)', s.learning.autoApproveKnowledge, 'checkbox')}
       ${f('learning.lowScoreAlert', 'Báo tôi khi điểm dưới', s.learning.lowScoreAlert, 'number')}
+      ${f('notifyOnNewLead', 'Báo khách tiềm năng mới qua Zalo/Lark', s.notifyOnNewLead, 'checkbox')}
       ${f('notifyOnNewOrder', 'Báo đơn nháp mới qua Zalo/Lark', s.notifyOnNewOrder, 'checkbox')}
       ${f('notifyOnEscalation', 'Báo khi trợ lý cần người hỗ trợ', s.notifyOnEscalation, 'checkbox')}</fieldset>
     <div><button class="primary">Lưu cài đặt</button></div>`;
+  const profiles = await api('/profiles');
+  $('#profiles').innerHTML = profiles.map((p) => `<div class="row"><b>${esc(p.name)}</b><span class="muted small">${esc(p.description)}</span><button class="primary" data-profile="${esc(p.id)}">Nạp gói này</button></div>`).join('') || '<p class="muted">Chưa có gói nào.</p>';
   $('#embedCode').textContent = `<script src="${location.origin}/widget.js" defer></script>`;
   const o = await api('/overview');
   const ok = (on) => (on ? '✅ đã kết nối' : '⚪ chưa cấu hình');
@@ -291,6 +350,14 @@ async function loadSettings() {
     o.setup.publicUrl !== location.origin ? `⚠️ PUBLIC_URL trong .env (${o.setup.publicUrl}) khác địa chỉ đang mở (${location.origin})` : '',
   ].filter(Boolean).join('\n\n');
 }
+$('#profiles').onclick = run(async (e) => {
+  const id = e.target.dataset.profile;
+  if (!id || !confirm('Nạp gói này sẽ thay toàn bộ Catalog và kiến thức mẫu hiện tại. Tiếp tục?')) return;
+  const r = await api(`/profiles/${id}/apply`, { method: 'POST' });
+  toast(`Đã nạp: ${r.products} dịch vụ/sản phẩm, ${r.knowledge} kiến thức, ${r.lessons} bài học`);
+  loadSettings();
+  loadOverview();
+});
 $('#settingsForm').onsubmit = run(async (e) => {
   e.preventDefault();
   const body = {};
@@ -329,7 +396,7 @@ function dialog(title, fields, onOk) {
 }
 
 // ---------- realtime ----------
-const loaders = { inbox: loadConvs, orders: loadOrders, products: loadProducts, knowledge: loadKnowledge, lessons: loadLessons, settings: loadSettings };
+const loaders = { inbox: loadConvs, leads: loadLeads, orders: loadOrders, products: loadProducts, knowledge: loadKnowledge, lessons: loadLessons, settings: loadSettings };
 function refresh() { loadOverview().catch(() => {}); if (currentTab === 'inbox') loadConvs().catch(() => {}); }
 
 function listen() {
@@ -343,6 +410,7 @@ function listen() {
       refresh();
       if (ev.type === 'message' && ev.conversationId === currentConv && currentTab === 'inbox') openConv(currentConv).catch(() => {});
       if (ev.type === 'order' && currentTab === 'orders') loadOrders();
+      if (ev.type === 'lead' && currentTab === 'leads') loadLeads();
     }, 300);
   };
 }

@@ -12,7 +12,7 @@ export function webchatRoutes({ hub }) {
 
   r.get('/config', (req, res) => {
     const s = hub.store.settings.shop;
-    res.json({ shopName: s.name, greeting: `Chào anh/chị 👋 ${s.name} có thể giúp gì ạ?` });
+    res.json({ shopName: s.name, greeting: s.greeting || `Chào anh/chị 👋 ${s.name} có thể giúp gì ạ?` });
   });
 
   r.post('/:sessionId/messages', async (req, res) => {

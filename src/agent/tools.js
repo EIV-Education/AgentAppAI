@@ -85,6 +85,23 @@ export const TOOL_DEFS = [
     },
   },
   {
+    name: 'create_lead',
+    description: 'Lưu KHÁCH TIỀM NĂNG khi khách đã cho số điện thoại/Zalo, để chuyên viên tư vấn liên hệ. Gọi ngay khi có SĐT, kèm mọi nhu cầu khách đã chia sẻ. Gọi lại với cùng SĐT để bổ sung thông tin (email, khu vực...).',
+    input_schema: {
+      type: 'object',
+      properties: {
+        segment: { type: 'string', enum: ['school_center', 'business', 'kids', 'adult', 'other'], description: 'Nhóm khách: trường học/trung tâm, doanh nghiệp, cá nhân trẻ em, cá nhân người đi làm, khác' },
+        contact_name: { type: 'string' },
+        phone: { type: 'string', description: 'Số điện thoại hoặc Zalo' },
+        email: { type: 'string' },
+        area: { type: 'string', description: 'Tỉnh/thành, khu vực' },
+        needs: { type: 'string', description: 'Tóm tắt nhu cầu: độ tuổi, mục tiêu, hình thức học, quy mô, cấp trường... đúng như khách nói' },
+        service_id: { type: 'string', description: 'Mã dịch vụ/khoá học trong catalog nếu xác định được' },
+      },
+      required: ['segment', 'phone', 'needs'],
+    },
+  },
+  {
     name: 'escalate_to_human',
     description: 'Chuyển câu hỏi cho chủ shop khi: không tìm thấy thông tin trong dữ liệu shop, khách khiếu nại/giận dữ, yêu cầu giảm giá ngoài chính sách, hỏi việc ngoài khả năng. Không được tự bịa câu trả lời.',
     input_schema: {
@@ -201,6 +218,25 @@ export async function runTool(name, input, ctx) {
         instruction: 'Tóm tắt đơn cho khách và nói rõ shop sẽ gọi/nhắn xác nhận. KHÔNG nói đơn đã được xác nhận.',
       };
     }
+    case 'create_lead': {
+      const phone = String(input.phone || '').replace(/[\s.()-]/g, '');
+      if (!PHONE_RE.test(phone)) return { error: 'Số điện thoại/Zalo chưa hợp lệ (cần 10 số, bắt đầu bằng 0 hoặc +84). Hãy hỏi lại khách.' };
+      const email = String(input.email || '').trim();
+      if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { error: 'Email chưa đúng định dạng, hãy hỏi lại khách.' };
+      const fields = {
+        segment: input.segment, contactName: input.contact_name || ctx.conversation.customerName || '', phone,
+        email, area: input.area || '', needs: input.needs || '', serviceId: input.service_id || '',
+      };
+      const existing = store.find('leads', (l) => l.phone === phone && l.conversationId === ctx.conversation.id)[0];
+      if (existing) {
+        const merged = Object.fromEntries(Object.entries(fields).map(([k, v]) => [k, v || existing[k]]));
+        store.update('leads', existing.id, merged);
+        return { lead_id: existing.id, status: 'Đã cập nhật thông tin khách', instruction: 'Cảm ơn khách, không cần hỏi lại thông tin đã có.' };
+      }
+      const lead = store.insert('leads', { status: 'new', conversationId: ctx.conversation.id, channel: ctx.conversation.channel, ...fields });
+      await ctx.hooks?.onLead?.(lead);
+      return { lead_id: lead.id, status: 'Đã chuyển cho chuyên viên tư vấn', instruction: 'Xác nhận đã tiếp nhận, chuyên viên sẽ liên hệ sớm. Không hứa thời gian hay giá cụ thể.' };
+    }
     case 'escalate_to_human': {
       store.update('conversations', ctx.conversation.id, {
         needsHuman: true,
@@ -212,4 +248,10 @@ export async function runTool(name, input, ctx) {
     default:
       return { error: `Công cụ không tồn tại: ${name}` };
   }
+}
+
+// Bộ công cụ theo chế độ: shop bán hàng có đơn nháp + phí ship; chế độ khách tiềm năng thì không
+const ORDER_ONLY = new Set(['create_draft_order', 'calculate_shipping']);
+export function toolsFor(mode) {
+  return mode === 'lead' ? TOOL_DEFS.filter((t) => !ORDER_ONLY.has(t.name)) : TOOL_DEFS;
 }

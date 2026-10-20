@@ -10,6 +10,8 @@ export const HELP = `Lệnh điều khiển trợ lý:
 /tl C12 <nội dung> – trả lời khách thay AI (AI im {phút} phút)
 /cho – hội thoại đang chờ bạn
 /don – đơn nháp chờ duyệt
+/lead – khách tiềm năng mới (chưa liên hệ)
+/lienhe KH3 – đánh dấu đã liên hệ khách KH3
 /duyet D5 – duyệt đơn D5 (báo khách)
 /huy D5 <lý do> – huỷ đơn D5
 /xem C12 – xem 6 tin gần nhất
@@ -71,6 +73,19 @@ export async function handleCommand(hub, rawText, { by = 'owner', minutes = 30 }
         return `📦 ${list.length} đơn chờ duyệt:\n${list.map((o) => `${o.id}: ${o.customer.name} – ${formatVnd(o.total)} – ${o.items.map((i) => `${i.name} x${i.quantity}`).join(', ')}`).join('\n')}\n→ /duyet <mã> hoặc /huy <mã> <lý do>`;
       }
 
+      case '/lead': case '/leads': case '/khach': {
+        const list = store.find('leads', (l) => l.status === 'new');
+        if (!list.length) return '🎯 Không có khách tiềm năng mới.';
+        return `🎯 ${list.length} khách tiềm năng chưa liên hệ:\n${list.slice(-20).map((l) => `${l.id}: ${l.contactName || 'Khách'} – ${l.phone}${l.area ? ` – ${l.area}` : ''} – ${(l.needs || '').slice(0, 80)}`).join('\n')}\n→ /lienhe <mã> khi đã gọi`;
+      }
+
+      case '/lienhe': case '/contacted': {
+        const l = store.get('leads', arg);
+        if (!l) return 'Cú pháp: /lienhe KH3';
+        store.update('leads', l.id, { status: 'contacted', contactedAt: new Date().toISOString(), contactedBy: by });
+        return `📞 Đã đánh dấu ${l.id} (${l.contactName || l.phone}) là đã liên hệ.`;
+      }
+
       case '/duyet': case '/approve': {
         if (!arg) return 'Cú pháp: /duyet D5';
         const o = await hub.approveOrder(arg, by);
@@ -118,9 +133,10 @@ export async function handleCommand(hub, rawText, { by = 'owner', minutes = 30 }
         const msgs = store.find('messages', (m) => isToday(m.createdAt));
         const orders = store.find('orders', (o) => isToday(o.createdAt));
         const graded = store.find('conversations', (c) => c.grade && isToday(c.grade.gradedAt));
+        const leads = store.find('leads', (l) => isToday(l.createdAt));
         const avg = graded.length ? (graded.reduce((a, c) => a + c.grade.score, 0) / graded.length).toFixed(1) : '–';
         const byCh = ['facebook', 'zalo', 'web'].map((ch) => `${ch}: ${convs.filter((c) => c.channel === ch).length}`).join(', ');
-        return `📈 Hôm nay: ${convs.length} hội thoại (${byCh}), ${msgs.filter((m) => m.role === 'customer').length} tin khách, ${msgs.filter((m) => m.role === 'bot').length} tin AI.\nĐơn nháp: ${orders.length} (chờ duyệt ${orders.filter((o) => o.status === 'pending').length}), doanh số đã duyệt ${formatVnd(orders.filter((o) => o.status === 'confirmed').reduce((a, o) => a + o.total, 0))}.\nĐang chờ bạn: ${store.find('conversations', (c) => c.needsHuman).length}. Điểm AI trung bình: ${avg}.\nTrợ lý: ${store.settings.botPaused ? '⏸ đang tạm dừng' : '▶️ đang chạy'}.`;
+        return `📈 Hôm nay: ${convs.length} hội thoại (${byCh}), ${msgs.filter((m) => m.role === 'customer').length} tin khách, ${msgs.filter((m) => m.role === 'bot').length} tin AI.\nĐơn nháp: ${orders.length} (chờ duyệt ${orders.filter((o) => o.status === 'pending').length}), doanh số đã duyệt ${formatVnd(orders.filter((o) => o.status === 'confirmed').reduce((a, o) => a + o.total, 0))}.\nKhách tiềm năng: ${leads.length} (chưa liên hệ ${store.find('leads', (l) => l.status === 'new').length}).\nĐang chờ bạn: ${store.find('conversations', (c) => c.needsHuman).length}. Điểm AI trung bình: ${avg}.\nTrợ lý: ${store.settings.botPaused ? '⏸ đang tạm dừng' : '▶️ đang chạy'}.`;
       }
 
       default:

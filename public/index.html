@@ -22,6 +22,7 @@
     <strong>🛍️ Trợ lý bán hàng</strong>
     <nav id="tabs">
       <button data-tab="inbox" class="active">Hội thoại <span id="badgeHuman" class="badge hidden"></span></button>
+      <button data-tab="leads">Khách tiềm năng <span id="badgeLeads" class="badge hidden"></span></button>
       <button data-tab="orders">Đơn nháp <span id="badgeOrders" class="badge hidden"></span></button>
       <button data-tab="products">Catalog</button>
       <button data-tab="knowledge">Kiến thức <span id="badgeKnow" class="badge hidden"></span></button>
@@ -44,6 +45,15 @@
         <ul id="convs"></ul>
       </aside>
       <div class="convDetail" id="convDetail"><p class="muted center">Chọn một hội thoại</p></div>
+    </section>
+
+    <!-- KHÁCH TIỀM NĂNG -->
+    <section data-view="leads" class="hidden">
+      <div class="row">
+        <select id="lStatus"><option value="new">Chưa liên hệ</option><option value="contacted">Đã liên hệ</option><option value="won">Đã chốt</option><option value="lost">Không thành</option><option value="">Tất cả</option></select>
+        <button id="exportLeads">Tải CSV (Excel)</button>
+      </div>
+      <div id="leads" class="grid"></div>
     </section>
 
     <!-- ĐƠN NHÁP -->
@@ -78,6 +88,11 @@
 
     <!-- CÀI ĐẶT -->
     <section data-view="settings" class="hidden">
+      <div class="card">
+        <h3>Gói dữ liệu dựng sẵn</h3>
+        <p class="muted small">Nạp gói sẽ <b>thay toàn bộ Catalog và kiến thức mẫu</b>, cập nhật cài đặt và kịch bản. Hội thoại, đơn, khách tiềm năng và kiến thức bạn tự dạy được giữ nguyên.</p>
+        <div id="profiles"></div>
+      </div>
       <form id="settingsForm" class="settings"></form>
       <div class="card">
         <h3>Lệnh nhanh (giống trên Zalo/Lark)</h3>
