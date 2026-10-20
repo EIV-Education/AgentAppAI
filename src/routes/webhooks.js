@@ -35,6 +35,9 @@ export function webhookRoutes({ hub, zalo, lark, facebook }) {
   });
 
   // ---- Zalo OA ----
+  // Zalo có thể gọi thử URL khi khai báo webhook: trả 200 để xác nhận địa chỉ đang hoạt động
+  r.get('/zalo', (req, res) => res.sendStatus(200));
+
   r.post('/zalo', (req, res) => {
     if (!zl.verifySignature(req.rawBody?.toString('utf8'), req.get('x-zevent-signature'), req.body)) {
       console.warn('[zalo] sai chữ ký webhook — kiểm tra ZALO_APP_ID, ZALO_OA_SECRET_KEY');
