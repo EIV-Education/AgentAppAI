@@ -114,3 +114,20 @@ test('tên khách: cá nhân dùng tên Zalo/Facebook; trường/trung tâm dùn
   assert.equal(school['Người liên hệ'], 'Cô Mai Anh');
   assert.equal(school['Nguồn'], 'Zalo');
 });
+
+test('lấy được tên Zalo sau khi đã có khách tiềm năng: điền tên thật thay "chưa rõ tên" và cập nhật CRM', async () => {
+  const h = makeHub();
+  const { api, calls } = fakeApi();
+  h.store.updateSettings({ crm: { enabled: true, baseUrl: 'https://x.larksuite.com/base/APP1?table=tblT1', fieldMap: guessMap(FIELDS) } });
+  h.hub.crm = createCrm({ store: h.store, api });
+  const conv = h.hub.getOrCreateConversation('zalo', 'z9');
+  const ctx = { store: h.store, conversation: conv, hooks: { onLead: (l) => h.hub.onLead(l) } };
+  const r = await runTool('create_lead', { segment: 'school_center', phone: '0905458372', needs: 'GV mầm non', contact_name: 'Anh (chưa rõ tên)', organization: 'Trường ABC' }, ctx);
+  await new Promise((res) => setTimeout(res, 10));
+  assert.equal(h.store.get('leads', r.lead_id).contactName, '');
+  h.hub.getOrCreateConversation('zalo', 'z9', 'Lê Văn Bình'); // tin nhắn sau lấy được tên
+  await new Promise((res) => setTimeout(res, 10));
+  assert.equal(h.store.get('leads', r.lead_id).contactName, 'Lê Văn Bình');
+  const put = calls.find((c) => c.method === 'PUT');
+  assert.equal(put.body.fields['Tên khách hàng'], 'Trường ABC');
+});

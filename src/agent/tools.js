@@ -117,6 +117,8 @@ export const TOOL_DEFS = [
   },
 ];
 
+// Tên tạm AI tự đặt khi chưa biết tên thật: "Anh (chưa rõ tên)", "Khách", "chị"...
+export const isPlaceholderName = (s) => !s || /chưa rõ|không rõ|chưa biết|unknown|^\s*(anh|chị|em|khách|ba mẹ|phụ huynh)\s*$/i.test(s);
 const PHONE_RE = /^(0|\+84)(3|5|7|8|9)\d{8}$/;
 
 function productSummary(p) {
@@ -227,7 +229,7 @@ export async function runTool(name, input, ctx) {
       if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { error: 'Email chưa đúng định dạng, hãy hỏi lại khách.' };
       const fields = {
         // Người liên hệ: tên Zalo/Facebook của tài khoản đang nhắn; web chat không có thì dùng tên khách tự giới thiệu
-        segment: input.segment, contactName: store.get('conversations', ctx.conversation.id)?.customerName || input.contact_name || '', phone,
+        segment: input.segment, contactName: store.get('conversations', ctx.conversation.id)?.customerName || (isPlaceholderName(input.contact_name) ? '' : input.contact_name), phone,
         organization: input.organization || '',
         email, area: input.area || '', address: input.address || '', needs: input.needs || '', serviceId: input.service_id || '',
       };

@@ -107,6 +107,7 @@ async function openConv(id) {
     <div class="convHead">
       <span class="title"><span class="ch ${c.channel}">${CH[c.channel]}</span> ${esc(c.customerName || 'Khách')} · ${c.id}</span>
       <span class="muted small">${d.aiActive ? '🤖 AI đang trả lời' : '🧑‍💼 AI đang im'}</span>
+      ${c.channel !== 'web' && !c.customerName ? '<button id="btnName">↻ Lấy tên Zalo/FB</button>' : ''}
       <button id="btnHand">${d.aiActive ? 'Tiếp quản' : 'Trả cho AI'}</button>
       ${c.needsHuman ? '<button id="btnResolve">Đã xử lý</button>' : ''}
       <button id="btnGrade">AI chấm điểm</button>
@@ -123,6 +124,7 @@ async function openConv(id) {
     </form>`;
   $('#msgs').scrollTop = 1e9;
   $('#btnHand').onclick = run(async () => { await api(`/conversations/${id}/handover`, { method: 'POST', body: { on: d.aiActive } }); openConv(id); });
+  $('#btnName')?.addEventListener('click', run(async () => { const r = await api(`/conversations/${id}/refresh-name`, { method: 'POST' }); toast(`Đã lấy tên: ${r.customerName}`); openConv(id); }));
   $('#btnResolve')?.addEventListener('click', run(async () => { await api(`/conversations/${id}/resolve`, { method: 'POST' }); openConv(id); refresh(); }));
   $('#btnGrade').onclick = run(async () => { toast('Đang chấm…'); await api(`/conversations/${id}/grade`, { method: 'POST' }); openConv(id); loadConvs(); });
   $('#btnRate').onclick = () => dialog('Chấm hội thoại', [['rating', 'Số sao (1-5)', 'number'], ['note', 'Ghi chú', 'textarea']], run(async (v) => {
@@ -187,7 +189,7 @@ async function loadLeads() {
       ${l.note ? `<div class="muted">Ghi chú: ${esc(l.note)}</div>` : ''}
       <div class="row"><select data-lead="${l.id}">${Object.entries(L_STATUS).map(([k, v]) => `<option value="${k}" ${k === l.status ? 'selected' : ''}>${v}</option>`).join('')}</select>
         <button data-edit="${l.id}">Sửa</button><button data-note="${l.id}">Ghi chú</button>${l.conversationId ? `<button data-conv="${l.conversationId}">Xem hội thoại</button>` : ''}</div>
-      ${l.crmRecordId ? `<div class="muted small">✅ Đã lên CRM ${time(l.crmSyncedAt)}</div>` : l.crmError ? `<div class="small" style="color:var(--bad)">⚠️ Chưa lên CRM: ${esc(l.crmError)} <button data-crm="${l.id}">Gửi lại</button></div>` : ''}
+      ${l.crmRecordId ? `<div class="muted small">✅ Đã lên CRM ${time(l.crmSyncedAt)}</div>` : l.crmError ? `<div class="small" style="color:var(--bad)">⚠️ Chưa lên CRM: ${esc(l.crmError)} <button data-crm="${l.id}">Gửi lại</button></div>` : `<div class="small muted">Chưa lên CRM <button data-crm="${l.id}">Gửi lên CRM</button></div>`}
     </div>`).join('') || '<p class="muted">Không có khách nào.</p>';
 }
 $('#lStatus').onchange = run(loadLeads);
@@ -214,6 +216,11 @@ $('#leads').onclick = run(async (e) => {
     dialog(`Sửa ${l.id}`, LEAD_FIELDS.map(([k, label, type]) => [k, label, type, l[k]]), run(async (v) => { await api(`/leads/${l.id}`, { method: 'PUT', body: v }); toast('Đã lưu, đang cập nhật CRM…'); loadLeads(); }));
   }
   if (d.crm) { await api(`/leads/${d.crm}/crm`, { method: 'POST' }); toast('Đã gửi lên CRM'); loadLeads(); }
+});
+$('#pushAllLeads').onclick = run(async () => {
+  const r = await api('/crm/push-all', { method: 'POST' });
+  toast(`Đã đẩy lên CRM: ${r.ok} khách${r.fail ? `, lỗi ${r.fail} (xem lý do trên từng thẻ)` : ''}`);
+  loadLeads();
 });
 $('#exportLeads').onclick = run(async () => {
   const all = await api('/leads');

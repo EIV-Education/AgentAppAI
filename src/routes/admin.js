@@ -104,6 +104,14 @@ export function adminRoutes({ hub }) {
     return hub.humanReply(req.params.id, text, { by: 'dashboard', learn: req.body.learn !== false });
   }));
   r.post('/conversations/:id/handover', wrap((req) => must(hub.setHandover(req.params.id, !!req.body.on))));
+  r.post('/conversations/:id/refresh-name', wrap(async (req) => {
+    const conv = must(store.get('conversations', req.params.id));
+    const ch = hub.channels[conv.channel];
+    if (!ch?.profileName) throw new Error('Kênh này không có tên hiển thị (web chat)');
+    const name = await ch.profileName(conv.externalId);
+    if (!name) throw new Error(ch.lastProfileError?.() || 'Không lấy được tên từ nền tảng');
+    return hub.setCustomerName(conv.id, name);
+  }));
   r.post('/conversations/:id/resolve', wrap((req) => must(store.update('conversations', req.params.id, { needsHuman: false }))));
   r.post('/conversations/:id/grade', wrap(async (req) => {
     if (!hub.llm) throw new Error('Chưa cấu hình ANTHROPIC_API_KEY');
@@ -153,9 +161,17 @@ export function adminRoutes({ hub }) {
     return lead;
   }));
   r.post('/leads/:id/crm', wrap(async (req) => {
-    if (!hub.crm?.enabled()) throw new Error('Chưa bật CRM (Cài đặt → CRM Lark Base)');
+    if (!hub.crm?.enabled()) throw new Error('Chưa bật CRM: Cài đặt → CRM Lark Base → tick "Bật tự động đẩy khách lên CRM" → Lưu CRM');
     const lead = must(store.get('leads', req.params.id));
     return (await hub.crm.sync(lead)) || must(null, store.get('leads', lead.id).crmError || 'Gửi CRM thất bại');
+  }));
+
+  r.post('/crm/push-all', wrap(async () => {
+    if (!hub.crm?.enabled()) throw new Error('Chưa bật CRM (Cài đặt → CRM Lark Base)');
+    let ok = 0;
+    let fail = 0;
+    for (const l of store.find('leads', (x) => !x.crmRecordId)) ((await hub.crm.sync(l)) ? ok++ : fail++);
+    return { ok, fail };
   }));
 
   // ---- CRM Lark Base ----

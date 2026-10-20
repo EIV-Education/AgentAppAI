@@ -1,4 +1,5 @@
 import { generateReply, splitBubbles } from '../agent/agent.js';
+import { isPlaceholderName } from '../agent/tools.js';
 import { learnFromOwnerAnswer, gradeConversation } from '../agent/learning.js';
 import { config } from '../config.js';
 import { formatVnd } from '../catalog.js';
@@ -29,7 +30,16 @@ export class Hub {
         needsHuman: false, handoverUntil: null, botEnabled: true, lastMessageAt: new Date().toISOString(),
       });
     } else if (customerName && !conv.customerName) {
-      this.store.update('conversations', conv.id, { customerName });
+      this.setCustomerName(conv.id, customerName);
+    }
+    return conv;
+  }
+
+  // Ghi tên Zalo/Facebook cho hội thoại; khách tiềm năng của hội thoại đó chưa có tên thật thì điền và cập nhật CRM
+  setCustomerName(convId, name) {
+    const conv = this.store.update('conversations', convId, { customerName: name });
+    for (const l of this.store.find('leads', (x) => x.conversationId === convId && isPlaceholderName(x.contactName))) {
+      this.syncLead(this.store.update('leads', l.id, { contactName: name }));
     }
     return conv;
   }

@@ -90,6 +90,7 @@ export function createZalo(store) {
   }
 
   // Tên hiển thị Zalo của khách (cần quyền "quản lý thông tin người dùng" khi cấp quyền OA)
+  let lastProfileError = null;
   async function profileName(userId) {
     const get = () => fetch(`https://openapi.zalo.me/v3.0/oa/user/detail?data=${encodeURIComponent(JSON.stringify({ user_id: String(userId) }))}`, {
       headers: { access_token: tokens().accessToken },
@@ -97,8 +98,13 @@ export function createZalo(store) {
     try {
       let data = await get();
       if (data.error === -216 || data.error === -124) { await refresh(); data = await get(); }
-      return data.error === 0 ? data.data?.display_name || null : null;
-    } catch {
+      const name = data.error === 0 ? data.data?.display_name || data.data?.user_alias || null : null;
+      lastProfileError = name ? null : `Zalo trả về lỗi ${data.error}: ${data.message || 'không có tên hiển thị'}`;
+      if (!name) console.warn(`[zalo] không lấy được tên của ${userId}: ${lastProfileError}`);
+      return name;
+    } catch (err) {
+      lastProfileError = err.message;
+      console.warn(`[zalo] không lấy được tên của ${userId}:`, err.message);
       return null;
     }
   }
@@ -106,6 +112,7 @@ export function createZalo(store) {
   return {
     name: 'zalo',
     profileName,
+    lastProfileError: () => lastProfileError,
     enabled: () => !!tokens().accessToken,
     // Chủ shop: ID trong .env (ZALO_OWNER_IDS) hoặc được cấp quyền trên dashboard
     ownerIds: () => [...new Set([...config.zalo.ownerIds, ...(store.settings.zaloOwnerIds || [])])],
