@@ -152,7 +152,12 @@ print_manual() {
   echo " 2. Bật SSL (Let's Encrypt) cho $DOMAIN"
   echo " 3. Bật Reverse Proxy cho $DOMAIN trỏ tới: http://127.0.0.1:$PORT"
   case "$1" in
-    aaPanel)  echo "    aaPanel: Website → Add site → vào site → Reverse proxy → Add → Target URL http://127.0.0.1:$PORT" ;;
+    aaPanel)
+      echo "    aaPanel:"
+      echo "     a. Website → Add site → Domain: $DOMAIN · Database: No · PHP: Static → Submit"
+      echo "     b. Bấm vào site → SSL → Let's Encrypt → tick $DOMAIN → Apply → bật Force HTTPS"
+      echo "     c. Reverse proxy → Add reverse proxy → Target URL: http://127.0.0.1:$PORT"
+      echo "        Sent Domain: \$host · KHÔNG bật Cache → Submit" ;;
     CyberPanel|OpenLiteSpeed|litespeed|lshttpd) echo "    LiteSpeed: tạo External App (Web Server) 127.0.0.1:$PORT + Context 'Proxy' cho URI /" ;;
     apache2|httpd) echo "    Apache: a2enmod proxy proxy_http; trong VirtualHost của $DOMAIN thêm:"
                    echo "      ProxyPreserveHost On"

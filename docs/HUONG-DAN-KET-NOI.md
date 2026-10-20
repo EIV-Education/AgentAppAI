@@ -71,6 +71,22 @@ Dùng cách này nếu anh đã có VPS hoặc muốn đặt server ở Việt N
    ```
 5. Mở `https://ten-mien-cua-anh` và đăng nhập bằng mật khẩu ở bước 3.
 
+**VPS dùng aaPanel làm thêm gì?** Script nhận ra aaPanel và không sửa nginx của aaPanel. Cuối script có một khung hướng dẫn kèm **số cổng** (ví dụ `3100`). Anh mở aaPanel trên trình duyệt và làm đúng thứ tự sau:
+
+1. **Website → Add site**
+   - Domain: `ai.eiv.edu.vn` (tên miền phụ đã trỏ về VPS)
+   - Database: **No** · PHP version: **Static** → *Submit*
+2. **Bật HTTPS trước**: bấm vào site vừa tạo → tab **SSL** → **Let's Encrypt** → tick tên miền → *Apply* → bật **Force HTTPS**.
+   *Phải làm bước này trước bước 3. Nếu bật Reverse proxy trước, Let's Encrypt sẽ không kiểm tra được tên miền và báo lỗi.*
+3. **Trỏ về trợ lý**: cùng cửa sổ đó → tab **Reverse proxy** → *Add reverse proxy*
+   - Proxy name: `trolyai`
+   - Target URL: `http://127.0.0.1:3100` (lấy đúng số cổng script in ra)
+   - Sent Domain: `$host`
+   - **Không** bật Cache → *Submit*
+4. Mở `https://ai.eiv.edu.vn/healthz`, thấy `{"ok":true}` là xong. Sau đó mở `https://ai.eiv.edu.vn` để vào dashboard.
+
+Website cũ trên aaPanel không bị ảnh hưởng, vì trợ lý là một site riêng với tên miền riêng. ⚠️ Chứng chỉ HTTPS do aaPanel tự gia hạn sau mỗi 3 tháng. Nếu một ngày aaPanel báo gia hạn thất bại, anh tạm tắt Reverse proxy, bấm gia hạn, rồi bật lại.
+
 **Trên VPS, các bước nối kênh phía dưới làm thế nào?** Chỗ nào ghi "thêm biến trong *Variables* của Railway" thì anh làm thay bằng: sửa file `.env` bằng lệnh `nano /opt/agentappai/.env`, rồi chạy `sudo systemctl restart agentappai`. Chỗ nào ghi "xem *View logs*" thì dùng lệnh `sudo journalctl -u agentappai -f`.
 
 **Các lệnh hay dùng:**

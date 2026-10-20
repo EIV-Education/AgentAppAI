@@ -33,7 +33,8 @@ export function adminRoutes({ hub }) {
 
   // ---- realtime ----
   r.get('/events', (req, res) => {
-    res.set({ 'content-type': 'text/event-stream', 'cache-control': 'no-cache', connection: 'keep-alive' });
+    // x-accel-buffering: nginx phía trước (aaPanel, reverse proxy) không đệm luồng này
+    res.set({ 'content-type': 'text/event-stream', 'cache-control': 'no-cache', connection: 'keep-alive', 'x-accel-buffering': 'no' });
     res.flushHeaders();
     const off = hub.on((ev) => res.write(`data: ${JSON.stringify(ev)}\n\n`));
     const ping = setInterval(() => res.write(': ping\n\n'), 25_000);
