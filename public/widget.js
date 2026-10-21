@@ -3,7 +3,9 @@
   if (window.__eivChat) return;
   window.__eivChat = true;
   var script = document.currentScript || document.querySelector('script[src*="widget.js"]');
-  var BASE = (script && script.src ? new URL(script.src).origin : location.origin) + '/api/chat';
+  var ORIGIN = script && script.src ? new URL(script.src).origin : location.origin;
+  var BASE = ORIGIN + '/api/chat';
+  var LOGO = ORIGIN + '/logo.png';
   var KEY = 'eivChatSession';
   var sid;
   try { sid = localStorage.getItem(KEY); } catch (e) {}
@@ -15,18 +17,18 @@
   var lastAt = '';
   var sending = false;
 
-  var css = '#eivc-btn{position:fixed;right:20px;bottom:20px;width:56px;height:56px;border-radius:50%;background:#2563eb;color:#fff;border:0;font-size:26px;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.25);z-index:2147483000}'
+  var css = '#eivc-btn{position:fixed;right:20px;bottom:20px;width:60px;height:60px;border-radius:50%;background:#f48120 url(' + LOGO + ') center/cover no-repeat;border:2px solid #fff;padding:0;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.25);z-index:2147483000}'
     + '#eivc-box{position:fixed;right:20px;bottom:86px;width:340px;max-width:calc(100vw - 32px);height:480px;max-height:calc(100vh - 110px);background:#fff;color:#1d2330;border-radius:14px;box-shadow:0 8px 30px rgba(0,0,0,.25);display:none;flex-direction:column;overflow:hidden;font:14px/1.45 system-ui,sans-serif;z-index:2147483000}'
-    + '#eivc-box.open{display:flex}#eivc-head{background:#2563eb;color:#fff;padding:12px 14px;font-weight:600}'
+    + '#eivc-box.open{display:flex}#eivc-head{background:#f48120;color:#fff;padding:10px 14px;font-weight:600;display:flex;align-items:center;gap:10px}#eivc-head img{width:34px;height:34px;border-radius:8px;border:1px solid rgba(255,255,255,.6)}'
     + '#eivc-msgs{flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:6px;background:#f5f6f8}'
-    + '.eivc-m{max-width:80%;padding:7px 11px;border-radius:12px;white-space:pre-wrap;word-wrap:break-word}.eivc-m.customer{align-self:flex-end;background:#2563eb;color:#fff}.eivc-m.shop{align-self:flex-start;background:#fff;border:1px solid #e5e7eb}'
-    + '#eivc-form{display:flex;border-top:1px solid #e5e7eb}#eivc-in{flex:1;border:0;padding:12px;font:inherit;outline:none;color:#1d2330;background:#fff}#eivc-form button{border:0;background:none;color:#2563eb;font-weight:600;padding:0 14px;cursor:pointer}'
+    + '.eivc-m{max-width:80%;padding:7px 11px;border-radius:12px;white-space:pre-wrap;word-wrap:break-word}.eivc-m.customer{align-self:flex-end;background:#d9680c;color:#fff}.eivc-m.shop{align-self:flex-start;background:#fff;border:1px solid #e5e7eb}'
+    + '#eivc-form{display:flex;border-top:1px solid #e5e7eb}#eivc-in{flex:1;border:0;padding:12px;font:inherit;outline:none;color:#1d2330;background:#fff}#eivc-form button{border:0;background:none;color:#d9680c;font-weight:600;padding:0 14px;cursor:pointer}'
     + '.eivc-typing{align-self:flex-start;color:#6b7280;font-size:12px}';
   var st = document.createElement('style'); st.textContent = css; document.head.appendChild(st);
 
-  var btn = document.createElement('button'); btn.id = 'eivc-btn'; btn.setAttribute('aria-label', 'Chat với shop'); btn.textContent = '💬';
+  var btn = document.createElement('button'); btn.id = 'eivc-btn'; btn.setAttribute('aria-label', 'Chat với shop'); 
   var box = document.createElement('div'); box.id = 'eivc-box';
-  box.innerHTML = '<div id="eivc-head">Chat với shop</div><div id="eivc-msgs"></div><form id="eivc-form"><input id="eivc-in" placeholder="Nhập tin nhắn…" autocomplete="off" maxlength="2000"><button>Gửi</button></form>';
+  box.innerHTML = '<div id="eivc-head"><img src="' + LOGO + '" alt=""><span>Chat với shop</span></div><div id="eivc-msgs"></div><form id="eivc-form"><input id="eivc-in" placeholder="Nhập tin nhắn…" autocomplete="off" maxlength="2000"><button>Gửi</button></form>';
   document.body.appendChild(btn); document.body.appendChild(box);
   var msgs = box.querySelector('#eivc-msgs');
   var input = box.querySelector('#eivc-in');
@@ -45,7 +47,7 @@
   }
 
   fetch(BASE + '/config').then(function (r) { return r.json(); }).then(function (c) {
-    box.querySelector('#eivc-head').textContent = c.shopName;
+    box.querySelector('#eivc-head span').textContent = c.shopName;
     add({ role: 'shop', text: c.greeting });
     poll();
   }).catch(function () {});

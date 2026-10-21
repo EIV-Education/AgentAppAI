@@ -22,6 +22,9 @@ textarea { width: 100%; resize: vertical; }
 .login { display: grid; place-items: center; min-height: 100vh; padding: 16px; }
 .login form { display: grid; gap: 12px; width: min(380px, 100%); }
 .login h1 { font-size: 20px; margin: 0; }
+.logo-lg { width: 96px; height: 96px; border-radius: 16px; justify-self: center; }
+.brandname { display: flex; align-items: center; gap: 8px; }
+.logo-sm { width: 32px; height: 32px; border-radius: 8px; }
 
 .topbar { display: flex; align-items: center; gap: 16px; padding: 10px 16px; background: var(--card); border-bottom: 1px solid var(--line); flex-wrap: wrap; position: sticky; top: 0; z-index: 5; }
 .topbar nav { display: flex; gap: 4px; flex: 1; flex-wrap: wrap; }

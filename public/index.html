@@ -4,12 +4,14 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Trợ lý bán hàng</title>
-<link rel="icon" href="data:,">
+<link rel="icon" type="image/png" href="/logo.png">
+<link rel="apple-touch-icon" href="/logo.png">
 <link rel="stylesheet" href="/style.css">
 </head>
 <body>
 <div id="login" class="login hidden">
   <form id="loginForm" class="card">
+    <img src="/logo.png" alt="EIV" class="logo-lg">
     <h1>Trợ lý bán hàng đa kênh</h1>
     <p class="muted">Nhập mã quản trị (ADMIN_TOKEN) để vào dashboard.</p>
     <input id="tokenInput" type="password" placeholder="Mã quản trị" autocomplete="current-password" required>
@@ -19,7 +21,7 @@
 
 <div id="app" class="hidden">
   <header class="topbar">
-    <strong>🛍️ Trợ lý bán hàng</strong>
+    <strong class="brandname"><img src="/logo.png" alt="" class="logo-sm"> Trợ lý bán hàng</strong>
     <nav id="tabs">
       <button data-tab="inbox" class="active">Hội thoại <span id="badgeHuman" class="badge hidden"></span></button>
       <button data-tab="leads">Khách tiềm năng <span id="badgeLeads" class="badge hidden"></span></button>
