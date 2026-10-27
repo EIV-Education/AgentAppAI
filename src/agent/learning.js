@@ -1,6 +1,7 @@
 import { textOf } from './llm.js';
 import { config } from '../config.js';
 import { normalize } from '../catalog.js';
+import { cleanReply } from './agent.js';
 
 // Chấm điểm hội thoại + tự học: rút kiến thức từ câu trả lời của chủ shop,
 // biến góp ý thành bài học, gom các câu hỏi trợ lý chưa trả lời được.
@@ -33,7 +34,7 @@ export function transcriptOf(store, conversationId) {
     .map((m) => {
       const who = { customer: 'KHÁCH', bot: 'TRỢ LÝ', human: 'CHỦ SHOP', system: 'HỆ THỐNG' }[m.role] || m.role;
       const tools = (m.trace || []).map((t) => `   [công cụ ${t.tool}] vào=${JSON.stringify(t.input)} ra=${JSON.stringify(t.result).slice(0, 1500)}`).join('\n');
-      return `${who}: ${m.text}${tools ? `\n${tools}` : ''}`;
+      return `${who}: ${m.role === 'bot' ? cleanReply(m.text) : m.text}${tools ? `\n${tools}` : ''}`;
     })
     .join('\n');
 }
@@ -284,7 +285,7 @@ const LEAD_SCHEMA = {
     segment: { type: 'string', enum: ['school_center', 'business', 'kids', 'adult', 'other'] },
     contact_name: { type: 'string', description: 'Tên khách tự giới thiệu, rỗng nếu không có' },
     organization: { type: 'string', description: 'Tên trường/trung tâm/doanh nghiệp, rỗng nếu không có' },
-    phone: { type: 'string', description: 'SĐT/Zalo của khách, đúng như khách nhắn' },
+    phone: { type: 'string', description: 'SĐT/Zalo của khách. Khách ở nước ngoài mà số chưa có mã quốc gia thì thêm mã của nước đó (VD Đài Loan +886, bỏ số 0 đầu)' },
     email: { type: 'string' },
     area: { type: 'string', description: 'Tỉnh/thành, khu vực' },
     address: { type: 'string', description: 'Địa chỉ cụ thể nếu khách cho' },

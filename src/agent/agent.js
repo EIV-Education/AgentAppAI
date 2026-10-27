@@ -30,6 +30,7 @@ Nguyên tắc bắt buộc:
 3. Dùng kịch bản tư vấn bên dưới để biết cần tìm hiểu gì và dẫn dắt tới đâu; không hỏi lại điều khách đã nói.
 4. Ngay khi khách cho SĐT/Zalo, gọi create_lead với đầy đủ nhu cầu đã biết. Thông tin cần có cho chuyên viên: SĐT/Zalo, nhu cầu/mục đích, địa chỉ hoặc khu vực; với trường học/trung tâm (và doanh nghiệp) phải hỏi thêm tên trường/trung tâm/doanh nghiệp. Tên người liên hệ hệ thống tự lấy từ Zalo/Facebook — chỉ hỏi tên khi khách chat trên website — thiếu cái nào thì khéo hỏi thêm (không ép), rồi gọi create_lead lại với cùng SĐT để bổ sung.
 5. Khách chưa cho SĐT thì không ép; trả lời câu hỏi rồi nhẹ nhàng mời để lại SĐT/Zalo khi phù hợp.
+   Khách ở nước ngoài (Đài Loan, Nhật, Hàn, Mỹ…) cho số nước ngoài vẫn hợp lệ, không bắt khách đổi sang số Việt Nam: ghi kèm mã quốc gia (VD Đài Loan +886, bỏ số 0 đầu); chưa rõ mã thì hỏi khách. Công cụ báo số sai thì hỏi lại khách nhẹ nhàng, không đoán số.
 
 ${COMMON_RULES}`,
 };
@@ -91,7 +92,8 @@ export function toApiMessages(history) {
   for (const m of history) {
     if (m.role === 'system' || !m.text) continue;
     const role = m.role === 'customer' ? 'user' : 'assistant';
-    const text = m.role === 'human' ? `[Chủ shop trả lời trực tiếp] ${m.text}` : m.text;
+    const text = m.role === 'human' ? `[Chủ shop trả lời trực tiếp] ${m.text}` : m.role === 'bot' ? cleanReply(m.text) : m.text;
+    if (!text) continue;
     const last = out[out.length - 1];
     if (last && last.role === role) last.content += `\n${text}`;
     else out.push({ role, content: text });
@@ -140,8 +142,13 @@ export async function generateReply({ llm, store, conversation, history, hooks }
       continue;
     }
 
+    const text = cleanReply(textOf(response));
+    if (!text) {
+      await runTool('escalate_to_human', { reason: 'other', question: 'Trợ lý trả về câu trả lời lỗi, cần người trả lời khách.' }, ctx);
+      return { text: 'Dạ anh/chị đợi em một chút, em kiểm tra lại rồi trả lời ngay ạ.', trace, escalated: true };
+    }
     return {
-      text: textOf(response),
+      text,
       trace,
       escalated: trace.some((t) => t.tool === 'escalate_to_human'),
       orderId: trace.find((t) => t.tool === 'create_draft_order' && t.result?.order_id)?.result.order_id,
@@ -150,6 +157,13 @@ export async function generateReply({ llm, store, conversation, history, hooks }
 
   await runTool('escalate_to_human', { reason: 'other', question: 'Trợ lý xử lý quá nhiều bước mà chưa trả lời được.' }, ctx);
   return { text: 'Dạ em đã chuyển câu hỏi cho quản lý shop, anh/chị đợi em chút ạ.', trace, escalated: true };
+}
+
+// Model dự phòng đôi khi lộ token điều khiển (<ctrl99>…) rồi tự viết tiếp lượt của khách: cắt bỏ từ đó trở đi
+export function cleanReply(text) {
+  const t = String(text || '');
+  const cut = t.search(/<\/?(ctrl\d+|\|?(im_start|im_end|eot_id|start_of_turn|end_of_turn|endoftext)\|?)>/i);
+  return (cut >= 0 ? t.slice(0, cut) : t).trim();
 }
 
 // Tách câu trả lời thành nhiều tin nhắn (dòng chỉ có ---)

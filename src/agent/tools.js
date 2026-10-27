@@ -93,7 +93,7 @@ export const TOOL_DEFS = [
         segment: { type: 'string', enum: ['school_center', 'business', 'kids', 'adult', 'other'], description: 'Nhóm khách: trường học/trung tâm, doanh nghiệp, cá nhân trẻ em, cá nhân người đi làm, khác' },
         contact_name: { type: 'string', description: 'Tên người liên hệ khách tự giới thiệu (hệ thống ưu tiên tên Zalo/Facebook nếu có)' },
         organization: { type: 'string', description: 'Tên trường học / trung tâm / doanh nghiệp (bắt buộc hỏi với khách trường học, trung tâm)' },
-        phone: { type: 'string', description: 'Số điện thoại hoặc Zalo' },
+        phone: { type: 'string', description: 'Số điện thoại hoặc Zalo. Khách ở nước ngoài: ghi kèm mã quốc gia (VD +886 912 345 678); số nước ngoài vẫn hợp lệ' },
         email: { type: 'string' },
         area: { type: 'string', description: 'Tỉnh/thành, khu vực' },
         address: { type: 'string', description: 'Địa chỉ cụ thể nếu khách cho (số nhà, đường, quận...)' },
@@ -119,7 +119,16 @@ export const TOOL_DEFS = [
 
 // Tên tạm AI tự đặt khi chưa biết tên thật: "Anh (chưa rõ tên)", "Khách", "chị"...
 export const isPlaceholderName = (s) => !s || /chưa rõ|không rõ|chưa biết|unknown|^\s*(anh|chị|em|khách|ba mẹ|phụ huynh)\s*$/i.test(s);
-const PHONE_RE = /^(0|\+84)(3|5|7|8|9)\d{8}$/;
+const PHONE_ERROR = 'Số điện thoại chưa hợp lệ. Số Việt Nam: 10 số bắt đầu bằng 0 hoặc +84. Số nước ngoài: cần kèm mã quốc gia (VD +886 912 345 678).';
+
+// Chuẩn hoá SĐT: số Việt Nam (0…/+84…) hoặc số nước ngoài có mã quốc gia (+886…, 00886…, 886…). Sai thì trả null.
+export function normalizePhone(raw) {
+  let p = String(raw || '').replace(/[\s.()\-/]/g, '');
+  if (p.startsWith('00')) p = `+${p.slice(2)}`;
+  if (/^(0|\+84)\d{9,10}$/.test(p)) return p;
+  if (/^[1-9]\d{10,14}$/.test(p)) p = `+${p}`;
+  return /^\+[1-9]\d{7,14}$/.test(p) ? p : null;
+}
 
 function productSummary(p) {
   return {
@@ -180,8 +189,8 @@ export async function runTool(name, input, ctx) {
       return { found: hits.length, entries: hits.map((k) => ({ question: k.question, answer: k.answer })) };
     }
     case 'create_draft_order': {
-      const phone = String(input.phone || '').replace(/[\s.-]/g, '');
-      if (!PHONE_RE.test(phone)) return { error: 'Số điện thoại không hợp lệ, hãy hỏi lại khách.' };
+      const phone = normalizePhone(input.phone);
+      if (!phone) return { error: `${PHONE_ERROR} Hãy hỏi lại khách.` };
       const lines = [];
       for (const it of input.items || []) {
         const p = store.get('products', it.product_id);
@@ -223,8 +232,8 @@ export async function runTool(name, input, ctx) {
       };
     }
     case 'create_lead': {
-      const phone = String(input.phone || '').replace(/[\s.()-]/g, '');
-      if (!PHONE_RE.test(phone)) return { error: 'Số điện thoại/Zalo chưa hợp lệ (cần 10 số, bắt đầu bằng 0 hoặc +84). Hãy hỏi lại khách.' };
+      const phone = normalizePhone(input.phone);
+      if (!phone) return { error: `${PHONE_ERROR} Hãy hỏi lại khách.` };
       const email = String(input.email || '').trim();
       if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { error: 'Email chưa đúng định dạng, hãy hỏi lại khách.' };
       const fields = {

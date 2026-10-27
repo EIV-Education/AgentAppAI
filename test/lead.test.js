@@ -198,3 +198,24 @@ test('tạo khách từ hội thoại: khách chưa cho SĐT thì báo lý do, k
   assert.match(r.error, /chưa cho số điện thoại/);
   assert.equal(store.all('leads').length, 0);
 });
+
+test('SĐT nước ngoài vẫn hợp lệ, chuẩn hoá về dạng có mã quốc gia', async () => {
+  const { normalizePhone } = await import('../src/agent/tools.js');
+  assert.equal(normalizePhone('0905.123.456'), '0905123456');
+  assert.equal(normalizePhone('+84 905 123 456'), '+84905123456');
+  assert.equal(normalizePhone('+886 912 345 678'), '+886912345678');
+  assert.equal(normalizePhone('00886-912-345-678'), '+886912345678');
+  assert.equal(normalizePhone('886912345678'), '+886912345678');
+  assert.equal(normalizePhone('+1 (408) 555-0123'), '+14085550123');
+  assert.equal(normalizePhone('12345'), null);
+  assert.equal(normalizePhone('abc'), null);
+});
+
+test('câu trả lời lộ token điều khiển và tự viết lượt của khách thì bị cắt bỏ', async () => {
+  const { cleanReply } = await import('../src/agent/agent.js');
+  assert.equal(cleanReply('Chị học để làm gì ạ?\n\n<ctrl99>user\nChủ yếu giao tiếp hằng ngày thôi bạn'), 'Chị học để làm gì ạ?');
+  const { hub, sent, store } = eivHub([text('<ctrl99>user\nok')]);
+  await hub.receive({ channel: 'zalo', externalId: 'z5', text: 'chào em' });
+  assert.ok(!sent.some((m) => m.text.includes('ctrl99')));
+  assert.equal(store.all('conversations')[0].needsHuman, true);
+});

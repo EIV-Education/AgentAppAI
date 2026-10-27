@@ -6,6 +6,7 @@ import { addLessonFromFeedback, rateConversation, runLearningCycle, learnExample
 import { parseProductsCsv } from '../importers.js';
 import { listProfiles, loadProfile, applyProfile } from '../profiles.js';
 import { LEAD_ATTRS, guessMap } from '../crm.js';
+import { normalizePhone } from '../agent/tools.js';
 import { recentLogs } from '../logbuffer.js';
 
 // API cho dashboard quản trị. Bảo vệ bằng ADMIN_TOKEN (header Authorization: Bearer ... hoặc ?token=).
@@ -165,8 +166,8 @@ export function adminRoutes({ hub }) {
   // Nhân viên tự nhập khách sau khi tư vấn (gọi điện, gặp trực tiếp...)
   r.post('/leads', wrap((req) => {
     const b = req.body || {};
-    const phone = String(b.phone || '').replace(/[\s.()-]/g, '');
-    if (!/^(0|\+84)\d{9,10}$/.test(phone)) throw new Error('Số điện thoại chưa hợp lệ');
+    const phone = normalizePhone(b.phone);
+    if (!phone) throw new Error('Số điện thoại chưa hợp lệ (số nước ngoài cần kèm mã quốc gia, VD +886…)');
     if (!String(b.contactName || '').trim()) throw new Error('Thiếu tên khách hàng');
     const lead = store.insert('leads', {
       status: 'new', channel: 'manual', conversationId: null, segment: b.segment || 'other',
