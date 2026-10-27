@@ -1,6 +1,6 @@
 import { generateReply, splitBubbles } from '../agent/agent.js';
-import { isPlaceholderName } from '../agent/tools.js';
-import { learnFromOwnerAnswer, gradeConversation } from '../agent/learning.js';
+import { isPlaceholderName, runTool } from '../agent/tools.js';
+import { learnFromOwnerAnswer, gradeConversation, extractLead } from '../agent/learning.js';
 import { config } from '../config.js';
 import { formatVnd } from '../catalog.js';
 
@@ -139,7 +139,7 @@ export class Hub {
       if (!this.llm) throw new Error('Chưa cấu hình ANTHROPIC_API_KEY');
       result = await generateReply({
         llm: this.llm, store: this.store, conversation: conv, history: this.history(conv.id),
-        hooks: { onEscalate: (c, info) => this.onEscalate(c, info), onOrder: (o) => this.onOrder(o), onLead: (l) => this.onLead(l), onLeadUpdate: (l) => this.syncLead(l) },
+        hooks: this.toolHooks(),
       });
     } catch (err) {
       console.error(`[hub] AI lỗi ở ${conv.id}:`, err.message);
@@ -260,6 +260,22 @@ export class Hub {
     if (!this.store.settings.notifyOnNewOrder) return;
     const items = order.items.map((i) => `• ${i.name}${i.variant ? ` (${i.variant})` : ''} x${i.quantity}: ${formatVnd(i.total)}`).join('\n');
     await this.notify(`🛒 Đơn nháp ${order.id} từ [${order.conversationId}] ${CHANNEL_LABEL[order.channel]}\n${items}\nShip: ${formatVnd(order.shippingFee)} – Tổng: ${formatVnd(order.total)}\n${order.customer.name} – ${order.customer.phone}\n${order.customer.address}${order.note ? `\nGhi chú: ${order.note}` : ''}\n→ /duyet ${order.id} hoặc /huy ${order.id} <lý do>`);
+  }
+
+  toolHooks() {
+    return { onEscalate: (c, info) => this.onEscalate(c, info), onOrder: (o) => this.onOrder(o), onLead: (l) => this.onLead(l), onLeadUpdate: (l) => this.syncLead(l) };
+  }
+
+  // Trợ lý đọc lại hội thoại, tạo/cập nhật khách tiềm năng và đẩy lên CRM (khi lúc chat trợ lý chưa lưu)
+  async leadFromConversation(convId) {
+    const conv = this.store.get('conversations', convId);
+    if (!conv) throw new Error('Không tìm thấy hội thoại');
+    if (!this.llm) throw new Error('Chưa cấu hình ANTHROPIC_API_KEY');
+    const info = await extractLead({ llm: this.llm, store: this.store, conversationId: conv.id });
+    if (!info.found || !info.phone) return { error: `Chưa tạo được khách: ${info.reason || 'khách chưa cho số điện thoại/Zalo'}` };
+    const r = await runTool('create_lead', info, { store: this.store, conversation: conv, hooks: this.toolHooks() });
+    if (r.error) return { error: `Chưa tạo được khách: ${r.error.replace(/ Hãy hỏi lại khách\.?/, '')}` };
+    return { lead: this.store.get('leads', r.lead_id), updated: r.status.startsWith('Đã cập nhật'), crm: !!this.crm?.enabled() };
   }
 
   // Đẩy khách lên CRM chạy nền, không làm chậm câu trả lời cho khách

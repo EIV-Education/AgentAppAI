@@ -12,6 +12,7 @@ export const HELP = `Lệnh điều khiển trợ lý:
 /don – đơn nháp chờ duyệt
 /lead – khách tiềm năng mới (chưa liên hệ)
 /lienhe KH3 – đánh dấu đã liên hệ khách KH3
+/taolead C12 – trợ lý đọc hội thoại C12, tạo khách & đẩy CRM
 /duyet D5 – duyệt đơn D5 (báo khách)
 /huy D5 <lý do> – huỷ đơn D5
 /xem C12 – xem 6 tin gần nhất
@@ -24,7 +25,7 @@ export const HELP = `Lệnh điều khiển trợ lý:
 const isToday = (iso) => iso && new Date(iso).toDateString() === new Date().toDateString();
 
 const KNOWN = new Set(['help', 'huongdan', 'hd', 'tamdung', 'pause', 'tieptuc', 'resume', 'tl', 'reply', 'cho', 'pending', 'don', 'orders',
-  'lead', 'leads', 'khach', 'lienhe', 'contacted', 'duyet', 'approve', 'huy', 'reject', 'xem', 'view', 'cham', 'grade', 'diem', 'rate',
+  'lead', 'leads', 'khach', 'lienhe', 'contacted', 'taolead', 'duyet', 'approve', 'huy', 'reject', 'xem', 'view', 'cham', 'grade', 'diem', 'rate',
   'day', 'teach', 'baocao', 'report']);
 const cmdName = (text) => (String(text).trim().match(/^\/([^\s]+)/)?.[1] || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd');
 
@@ -114,6 +115,14 @@ export async function handleCommand(hub, rawText, { by = 'owner', minutes = 30 }
         const msgs = store.find('messages', (m) => m.conversationId === c.id).slice(-6);
         const who = { customer: '👤', bot: '🤖', human: '🧑‍💼' };
         return `[${c.id}] ${c.channel} – ${c.customerName || 'Khách'}\n${msgs.map((m) => `${who[m.role] || '•'} ${m.text}`.slice(0, 300)).join('\n')}`;
+      }
+
+      case '/taolead': {
+        if (!isConvId(arg)) return 'Cú pháp: /taolead C12';
+        const r = await hub.leadFromConversation(arg.toUpperCase());
+        if (r.error) return `⚠️ ${arg.toUpperCase()}: ${r.error}`;
+        const l = r.lead;
+        return `🎯 ${r.updated ? 'Đã cập nhật' : 'Đã tạo'} khách ${l.id} từ ${arg.toUpperCase()}: ${l.organization ? `${l.organization} – ` : ''}${l.contactName || 'Khách'} – ${l.phone}\nNhu cầu: ${l.needs}${r.crm ? '\n→ Đang đẩy lên CRM' : '\n⚠️ CRM chưa bật'}`;
       }
 
       case '/cham': case '/grade': {

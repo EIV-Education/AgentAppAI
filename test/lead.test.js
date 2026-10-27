@@ -172,3 +172,29 @@ test('lỗi ngoài dự kiến khi trả lời: không im lặng, báo chủ sho
   assert.equal(llm.calls.length, 1);
   assert.equal(store.find('messages', (m) => m.conversationId === conv.id && m.role === 'bot').length, 1);
 });
+
+test('tạo khách từ hội thoại: trợ lý đọc lại hội thoại, lưu khách và báo chủ shop', async () => {
+  const lead = { found: true, reason: '', segment: 'school_center', contact_name: '', organization: 'Trường Tiểu học Hoà Bình', phone: '0905 123 456', email: '', area: 'Đà Nẵng', address: '', needs: 'Cần 2 giáo viên bản ngữ cho khối 3' };
+  const { hub, store, notes } = eivHub([text('Dạ em chào chị'), text(JSON.stringify(lead)), text(JSON.stringify(lead))]);
+  await hub.receive({ channel: 'facebook', externalId: 'f9', text: 'Trường em cần giáo viên, sđt 0905 123 456', customerName: 'Helen Nguyen' });
+  const conv = store.all('conversations')[0];
+  const r = await hub.leadFromConversation(conv.id);
+  assert.equal(r.updated, false);
+  assert.equal(r.lead.phone, '0905123456');
+  assert.equal(r.lead.organization, 'Trường Tiểu học Hoà Bình');
+  assert.equal(r.lead.conversationId, conv.id);
+  assert.ok(notes.some((n) => n.includes(r.lead.id)));
+  // Bấm lần nữa: cập nhật, không tạo trùng
+  const again = await handleCommand(hub, `/taolead ${conv.id.toLowerCase()}`);
+  assert.match(again, /Đã cập nhật/);
+  assert.equal(store.all('leads').length, 1);
+});
+
+test('tạo khách từ hội thoại: khách chưa cho SĐT thì báo lý do, không tạo', async () => {
+  const none = { found: false, reason: 'Khách chưa cho số điện thoại', segment: 'other', contact_name: '', organization: '', phone: '', email: '', area: '', address: '', needs: '' };
+  const { hub, store } = eivHub([text('Dạ em chào chị'), text(JSON.stringify(none))]);
+  await hub.receive({ channel: 'zalo', externalId: 'z9', text: 'cho hỏi học phí' });
+  const r = await hub.leadFromConversation(store.all('conversations')[0].id);
+  assert.match(r.error, /chưa cho số điện thoại/);
+  assert.equal(store.all('leads').length, 0);
+});

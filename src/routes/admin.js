@@ -122,6 +122,11 @@ export function adminRoutes({ hub }) {
     const r = await hub.schedule(conv.id);
     return { replied: !!r?.replied };
   }));
+  r.post('/conversations/:id/lead', wrap(async (req) => {
+    const r = await hub.leadFromConversation(req.params.id);
+    if (r.error) throw new Error(r.error);
+    return r;
+  }));
   r.post('/conversations/:id/resolve', wrap((req) => must(store.update('conversations', req.params.id, { needsHuman: false }))));
   r.post('/conversations/:id/grade', wrap(async (req) => {
     if (!hub.llm) throw new Error('Chưa cấu hình ANTHROPIC_API_KEY');

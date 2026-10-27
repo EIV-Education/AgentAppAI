@@ -274,3 +274,35 @@ export async function learnFromTranscript({ llm, store, text }) {
     .map((k) => store.insert('knowledge', { question: scrub(k.question), answer: scrub(k.answer), status: 'pending', source: 'transcript' }));
   return { examples: examples.length, lessons: lessons.length, knowledge: knowledge.length };
 }
+
+const LEAD_SCHEMA = {
+  type: 'object',
+  additionalProperties: false,
+  properties: {
+    found: { type: 'boolean', description: 'true nếu khách đã cho số điện thoại/Zalo của chính họ trong hội thoại' },
+    reason: { type: 'string', description: 'Nếu found=false: thiếu gì (tiếng Việt, ngắn)' },
+    segment: { type: 'string', enum: ['school_center', 'business', 'kids', 'adult', 'other'] },
+    contact_name: { type: 'string', description: 'Tên khách tự giới thiệu, rỗng nếu không có' },
+    organization: { type: 'string', description: 'Tên trường/trung tâm/doanh nghiệp, rỗng nếu không có' },
+    phone: { type: 'string', description: 'SĐT/Zalo của khách, đúng như khách nhắn' },
+    email: { type: 'string' },
+    area: { type: 'string', description: 'Tỉnh/thành, khu vực' },
+    address: { type: 'string', description: 'Địa chỉ cụ thể nếu khách cho' },
+    needs: { type: 'string', description: 'Tóm tắt nhu cầu đúng như khách nói' },
+  },
+  required: ['found', 'reason', 'segment', 'contact_name', 'organization', 'phone', 'email', 'area', 'address', 'needs'],
+};
+
+// Đọc lại hội thoại và rút thông tin khách tiềm năng (dùng khi trợ lý lỡ chưa lưu khách)
+export async function extractLead({ llm, store, conversationId }) {
+  const transcript = transcriptOf(store, conversationId);
+  if (!transcript.includes('KHÁCH:')) return { found: false, reason: 'Hội thoại chưa có tin nhắn của khách' };
+  const response = await llm.create({
+    max_tokens: 2000,
+    system: 'Bạn rút thông tin khách tiềm năng từ hội thoại tư vấn. Chỉ lấy thông tin KHÁCH tự nói ra; không lấy số hotline/email của shop, không suy đoán. Trường nào không có thì để chuỗi rỗng. Viết tiếng Việt.',
+    messages: [{ role: 'user', content: `Hội thoại:\n\n${transcript}` }],
+    output_config: { effort: 'low', format: { type: 'json_schema', schema: LEAD_SCHEMA } },
+  });
+  if (response.stop_reason === 'refusal') return { found: false, reason: 'AI từ chối xử lý hội thoại này' };
+  return JSON.parse(textOf(response));
+}

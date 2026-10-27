@@ -109,6 +109,7 @@ async function openConv(id) {
       <span class="muted small">${d.aiActive ? '🤖 AI đang trả lời' : '🧑‍💼 AI đang im'}</span>
       ${d.aiActive && d.messages.at(-1)?.role === 'customer' ? '<button id="btnAiReply">🤖 Để AI trả lời tin này</button>' : ''}
       ${c.channel !== 'web' && !c.customerName ? '<button id="btnName">↻ Lấy tên Zalo/FB</button>' : ''}
+      <button id="btnLead">🎯 Tạo khách &amp; đẩy CRM</button>
       <button id="btnHand">${d.aiActive ? 'Tiếp quản' : 'Trả cho AI'}</button>
       ${c.needsHuman ? '<button id="btnResolve">Đã xử lý</button>' : ''}
       <button id="btnGrade">AI chấm điểm</button>
@@ -127,6 +128,11 @@ async function openConv(id) {
   $('#msgs').scrollTop = 1e9;
   $('#btnHand').onclick = run(async () => { await api(`/conversations/${id}/handover`, { method: 'POST', body: { on: d.aiActive } }); openConv(id); });
   $('#btnAiReply')?.addEventListener('click', run(async () => { toast('AI đang soạn câu trả lời…'); await api(`/conversations/${id}/ai-reply`, { method: 'POST' }); openConv(id); }));
+  $('#btnLead').onclick = run(async () => {
+    toast('Trợ lý đang đọc hội thoại…');
+    const r = await api(`/conversations/${id}/lead`, { method: 'POST' });
+    toast(`${r.updated ? 'Đã cập nhật' : 'Đã tạo'} khách ${r.lead.id} – ${r.lead.phone}${r.crm ? ', đang đẩy lên CRM (xem tab Khách tiềm năng)' : '. CRM chưa bật'}`);
+  });
   $('#btnName')?.addEventListener('click', run(async () => { const r = await api(`/conversations/${id}/refresh-name`, { method: 'POST' }); toast(`Đã lấy tên: ${r.customerName}`); openConv(id); }));
   $('#btnResolve')?.addEventListener('click', run(async () => { await api(`/conversations/${id}/resolve`, { method: 'POST' }); openConv(id); refresh(); }));
   $('#btnGrade').onclick = run(async () => { toast('Đang chấm…'); await api(`/conversations/${id}/grade`, { method: 'POST' }); openConv(id); loadConvs(); });
