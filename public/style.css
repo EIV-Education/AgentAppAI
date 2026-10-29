@@ -59,7 +59,7 @@ main { padding: 12px 16px 40px; }
 
 .convHead { padding: 10px 14px; border-bottom: 1px solid var(--line); display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .convHead .title { flex: 1; font-weight: 600; }
-.msgs { flex: 1; overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 8px; }
+.msgs { flex: 1; min-height: 140px; overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 8px; }
 .msg { max-width: 75%; padding: 8px 12px; border-radius: 12px; white-space: pre-wrap; word-wrap: break-word; }
 .msg.customer { background: var(--bg); align-self: flex-start; border: 1px solid var(--line); }
 .msg.bot { background: var(--brand-soft); align-self: flex-end; }
@@ -67,6 +67,23 @@ main { padding: 12px 16px 40px; }
 .msg .meta { font-size: 11px; color: var(--muted); margin-top: 2px; }
 .msg details { font-size: 12px; color: var(--muted); }
 .msg details pre { white-space: pre-wrap; max-height: 200px; overflow: auto; }
+.infoBar { display: grid; grid-template-columns: minmax(0, 1fr); gap: 4px; padding: 6px 14px; max-height: 38%; overflow-y: auto; flex: none; }
+.infoBar:empty { display: none; }
+.infoItem { border: 1px solid var(--line); border-radius: 8px; font-size: 13px; background: var(--bg); }
+.infoItem.warn { border-color: var(--warn); }
+.infoItem summary, .infoItem > .infoSum { display: flex; gap: 4px; min-width: 0; padding: 5px 10px; cursor: pointer; list-style: none; }
+.infoItem summary::-webkit-details-marker { display: none; }
+.infoItem summary::before { content: '▸'; color: var(--muted); flex: none; }
+.infoItem[open] summary::before { content: '▾'; }
+.infoSum { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.infoItem[open] .infoShort { display: none; }
+.infoBody { padding: 0 10px 8px; }
+.infoBody ul { margin: 4px 0; padding-left: 18px; }
+.more { position: relative; }
+.more summary { list-style: none; }
+.more summary::-webkit-details-marker { display: none; }
+.more .menu { position: absolute; right: 0; top: calc(100% + 4px); background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 6px; display: grid; gap: 4px; z-index: 10; min-width: 170px; box-shadow: 0 6px 20px rgba(0,0,0,.12); }
+.convHead button, .convHead .btn { padding: 4px 10px; }
 .gradeBox { margin: 0 14px; padding: 10px; border: 1px dashed var(--line); border-radius: 10px; font-size: 13px; }
 .composer { border-top: 1px solid var(--line); padding: 10px; display: grid; gap: 6px; }
 .composer .row { margin: 0; }

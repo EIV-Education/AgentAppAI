@@ -98,6 +98,18 @@ async function loadConvs() {
 $('#convs').onclick = (e) => { const li = e.target.closest('li[data-id]'); if (li) openConv(li.dataset.id); };
 $('#fChannel').onchange = $('#fFilter').onchange = run(loadConvs);
 
+// Ô thông tin gọn 1 dòng, bấm để xem chi tiết; nhớ ô nào anh đang mở
+const openInfo = new Set((() => { try { return JSON.parse(localStorage.getItem('openInfo')) || []; } catch { return []; } })());
+function infoItem(kind, icon, label, body, cls = '', short = body) {
+  return `<details class="infoItem ${cls}" data-kind="${kind}"${openInfo.has(kind) ? ' open' : ''}><summary><span class="infoSum">${icon} ${label} <span class="infoShort">${short}</span></span></summary><div class="infoBody">${body}</div></details>`;
+}
+document.addEventListener('toggle', (e) => {
+  const k = e.target.dataset?.kind;
+  if (!k) return;
+  e.target.open ? openInfo.add(k) : openInfo.delete(k);
+  try { localStorage.setItem('openInfo', JSON.stringify([...openInfo])); } catch {}
+}, true);
+
 async function openConv(id) {
   currentConv = id;
   const d = await api(`/conversations/${id}`);
@@ -108,24 +120,29 @@ async function openConv(id) {
       <span class="title"><span class="ch ${c.channel}">${CH[c.channel]}</span> ${esc(c.customerName || 'Khách')} · ${c.id}</span>
       <span class="muted small">${d.aiActive ? '🤖 AI đang trả lời' : '🧑‍💼 AI đang im'}</span>
       ${d.aiActive && d.messages.at(-1)?.role === 'customer' ? '<button id="btnAiReply">🤖 Để AI trả lời tin này</button>' : ''}
-      ${c.channel !== 'web' && !c.customerName ? '<button id="btnName">↻ Lấy tên Zalo/FB</button>' : ''}
       <button id="btnLead">🎯 Tạo khách &amp; đẩy CRM</button>
       <button id="btnHand">${d.aiActive ? 'Tiếp quản' : 'Trả cho AI'}</button>
       ${c.needsHuman ? '<button id="btnResolve">Đã xử lý</button>' : ''}
-      <button id="btnGrade">AI chấm điểm</button>
-      <button id="btnRate">⭐ Chấm</button>
       <button id="btnTeach" class="primary">🎓 Dạy</button>
+      <details class="more"><summary class="btn">⋯</summary><div class="menu">
+        ${c.channel !== 'web' && !c.customerName ? '<button id="btnName">↻ Lấy tên Zalo/FB</button>' : ''}
+        <button id="btnGrade">AI chấm điểm</button>
+        <button id="btnRate">⭐ Chấm</button>
+      </div></details>
     </div>
-    ${d.aiOffReason ? `<div class="gradeBox">⏸ <b>AI không trả lời vì:</b> ${esc(d.aiOffReason)}</div>` : ''}
-    ${c.needsHuman && c.escalation ? `<div class="gradeBox">🙋 <b>Cần bạn:</b> ${esc(c.escalation.question)}</div>` : ''}
-    ${g ? `<div class="gradeBox"><b>Điểm ${g.score}/10</b> · chính xác ${g.accuracy} · hữu ích ${g.helpfulness} · giọng ${g.tone} · bán hàng ${g.sales} · tự nhiên ${g.naturalness ?? '–'}${g.hallucination ? ' · <b style="color:var(--bad)">CÓ BỊA</b>' : ''}<br>${esc(g.summary)}${g.issues.length ? `<ul>${g.issues.map((i) => `<li>${esc(i)}</li>`).join('')}</ul>` : ''}${g.betterReply ? `<div class="muted">Gợi ý: ${esc(g.betterReply)}</div>` : ''}</div>` : ''}
-    ${d.orders.map((o) => `<div class="gradeBox">🛒 Đơn ${o.id} – ${vnd(o.total)} – <b>${o.status}</b></div>`).join('')}
+    <div class="infoBar">
+      ${d.aiOffReason ? infoItem('off', '⏸', '<b>AI không trả lời:</b>', esc(d.aiOffReason)) : ''}
+      ${c.needsHuman && c.escalation ? infoItem('need', '🙋', '<b>Cần bạn:</b>', esc(c.escalation.question), 'warn') : ''}
+      ${g ? infoItem('grade', '📊', `<b>Điểm ${g.score}/10</b>${g.hallucination ? ' · <b style="color:var(--bad)">CÓ BỊA</b>' : ''}`, `<div class="muted small">chính xác ${g.accuracy} · hữu ích ${g.helpfulness} · giọng ${g.tone} · bán hàng ${g.sales} · tự nhiên ${g.naturalness ?? '–'}</div>${esc(g.summary)}${g.issues.length ? `<ul>${g.issues.map((i) => `<li>${esc(i)}</li>`).join('')}</ul>` : ''}${g.betterReply ? `<div class="muted">Gợi ý: ${esc(g.betterReply)}</div>` : ''}`, '', esc(g.summary)) : ''}
+      ${d.orders.map((o) => `<div class="infoItem"><span class="infoSum">🛒 Đơn ${o.id} – ${vnd(o.total)} – <b>${o.status}</b></span></div>`).join('')}
+    </div>
     <div class="msgs" id="msgs">${d.messages.map(renderMsg).join('')}</div>
     <form class="composer" id="composer">
       <textarea id="replyText" rows="2" placeholder="Trả lời khách thay AI (AI sẽ im một lúc)…"></textarea>
       <div class="row"><label class="small"><input type="checkbox" id="learnChk" checked> Cho trợ lý học từ câu trả lời này</label><span style="flex:1"></span><button class="primary">Gửi</button></div>
     </form>`;
   $('#msgs').scrollTop = 1e9;
+  $('.more .menu').onclick = () => $('.more').removeAttribute('open');
   $('#btnHand').onclick = run(async () => { await api(`/conversations/${id}/handover`, { method: 'POST', body: { on: d.aiActive } }); openConv(id); });
   $('#btnAiReply')?.addEventListener('click', run(async () => { toast('AI đang soạn câu trả lời…'); await api(`/conversations/${id}/ai-reply`, { method: 'POST' }); openConv(id); }));
   $('#btnLead').onclick = run(async () => {
