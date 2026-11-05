@@ -67,5 +67,5 @@ export const config = {
   conversationIdleMinutes: Number(env('CONVERSATION_IDLE_MINUTES', '30')),
   historyLimit: Number(env('HISTORY_LIMIT', '30')),
   // Chờ khách nhắn xong (khách hay gửi nhiều tin liên tiếp: SĐT rồi địa chỉ) trước khi AI trả lời
-  replyWaitMs: Number(env('REPLY_WAIT_SECONDS', '8')) * 1000,
+  replyWaitMs: Number(env('REPLY_WAIT_SECONDS', '18')) * 1000,
 };
