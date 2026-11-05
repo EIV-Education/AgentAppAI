@@ -19,6 +19,7 @@ export class Hub {
     this.pendingAgain = new Set();
     this.listeners = new Set();
     this.bubbleDelayMs = 1200; // nghỉ giữa các tin khi trợ lý nhắn nhiều tin liên tiếp
+    this.replyWaitMs = config.replyWaitMs; // chờ khách nhắn xong rồi mới trả lời
   }
 
   // ---- hội thoại & tin nhắn ----
@@ -103,12 +104,33 @@ export class Hub {
       let result;
       do {
         this.pendingAgain.delete(convId);
+        await this.waitForCustomer(convId);
+        this.pendingAgain.delete(convId);
         result = await this.respond(convId);
       } while (this.pendingAgain.has(convId));
       return result;
     })().finally(() => this.running.delete(convId));
     this.running.set(convId, p);
     return p;
+  }
+
+  // Khách còn đang gõ (vừa gửi tin trong vài giây) thì chờ thêm, tối đa 3 lần chờ
+  async waitForCustomer(convId) {
+    for (let i = 0; i < 3 && this.replyWaitMs > 0; i++) {
+      const last = this.lastCustomerAt(convId);
+      const left = this.replyWaitMs - (Date.now() - last);
+      if (left <= 0) return;
+      await new Promise((r) => setTimeout(r, left));
+    }
+  }
+
+  lastCustomerAt(convId) {
+    const m = this.store.find('messages', (x) => x.conversationId === convId && x.role === 'customer').at(-1);
+    return m ? new Date(m.createdAt).getTime() : 0;
+  }
+
+  countCustomer(convId) {
+    return this.store.find('messages', (x) => x.conversationId === convId && x.role === 'customer').length;
   }
 
   async respond(convId) {
@@ -134,6 +156,7 @@ export class Hub {
     const channel = this.channels[conv.channel];
     channel?.typing?.(conv.externalId, conv);
 
+    const seen = this.countCustomer(convId);
     let result;
     try {
       if (!this.llm) throw new Error('Chưa cấu hình ANTHROPIC_API_KEY');
@@ -153,12 +176,19 @@ export class Hub {
 
     // Chủ shop có thể đã tiếp quản trong lúc AI đang nghĩ
     if (!this.aiActive(this.store.get('conversations', convId))) return { conversation: conv, replied: false };
+    // Khách nhắn thêm trong lúc AI đang nghĩ: bỏ câu trả lời cũ, lượt sau đọc lại đủ tin rồi mới trả lời
+    if (this.countCustomer(convId) > seen) {
+      console.log(`[hub] ${convId} khách nhắn thêm trong lúc AI soạn — soạn lại`);
+      this.pendingAgain.add(convId);
+      return { conversation: conv, replied: false };
+    }
 
     // Nhắn thành nhiều tin ngắn liên tiếp như người thật
     const parts = splitBubbles(result.text);
     let msg;
     for (const [i, part] of parts.entries()) {
       if (i > 0) await new Promise((r) => setTimeout(r, Math.min(this.bubbleDelayMs, 300 + part.length * 15)));
+      if (i > 0 && this.countCustomer(convId) > seen) { this.pendingAgain.add(convId); break; } // khách vừa nhắn thêm: dừng các tin còn lại
       const m = this.addMessage(conv, 'bot', part, i === 0 ? { trace: result.trace, escalated: !!result.escalated } : {});
       msg ||= m;
       await this.deliver(conv, part);

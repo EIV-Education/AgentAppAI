@@ -79,3 +79,29 @@ test('/diem 4-5 sao kích hoạt học mẫu từ hội thoại', async () => {
 test('scrub xoá SĐT và email', () => {
   assert.equal(scrub('gọi 0912.345.678 hoặc mail a@b.vn'), 'gọi [SĐT] hoặc mail [email]');
 });
+
+test('khách nhắn thêm trong lúc AI đang soạn: bỏ câu trả lời cũ, đọc đủ tin rồi mới trả lời', async () => {
+  let h;
+  const script = [
+    () => { h.hub.receive({ channel: 'zalo', externalId: 'z7', text: 'Trương Định, Hà Nội' }); return text('Chị cho em xin khu vực ạ?'); },
+    text('Dạ em ghi nhận chị ở Trương Định, Hà Nội ạ'),
+  ];
+  h = makeHub(script);
+  h.hub.bubbleDelayMs = 0;
+  await h.hub.receive({ channel: 'zalo', externalId: 'z7', text: '0942491695' });
+  await h.hub.running.get(h.store.all('conversations')[0].id);
+  assert.deepEqual(h.sent.map((m) => m.text), ['Dạ em ghi nhận chị ở Trương Định, Hà Nội ạ']);
+  const lastCall = h.llm.calls.at(-1).messages.at(-1).content;
+  assert.match(lastCall, /0942491695\nTrương Định, Hà Nội/);
+});
+
+test('chờ khách nhắn xong mới trả lời: 2 tin liên tiếp chỉ gọi AI một lần', async () => {
+  const h = makeHub([text('Dạ em ghi nhận ạ')]);
+  h.hub.replyWaitMs = 150;
+  const p = h.hub.receive({ channel: 'zalo', externalId: 'z8', text: '0942491695' });
+  await new Promise((r) => setTimeout(r, 50));
+  await h.hub.receive({ channel: 'zalo', externalId: 'z8', text: 'Trương Định, Hà Nội' });
+  await p;
+  assert.equal(h.llm.calls.length, 1);
+  assert.match(h.llm.calls[0].messages.at(-1).content, /0942491695\nTrương Định/);
+});

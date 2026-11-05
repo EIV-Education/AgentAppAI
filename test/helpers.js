@@ -2,7 +2,9 @@ import { Store } from '../src/db.js';
 import { Hub } from '../src/core/hub.js';
 import fs from 'node:fs';
 import path from 'node:path';
-import { ROOT } from '../src/config.js';
+import { ROOT, config } from '../src/config.js';
+
+config.replyWaitMs = 0; // test không chờ khách gõ tiếp
 
 // LLM giả: trả lần lượt các phản hồi đã kịch bản hoá, ghi lại mọi request
 export function fakeLLM(script) {

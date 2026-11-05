@@ -66,4 +66,6 @@ export const config = {
   // Hội thoại im lặng bao lâu thì coi như kết thúc để chấm điểm
   conversationIdleMinutes: Number(env('CONVERSATION_IDLE_MINUTES', '30')),
   historyLimit: Number(env('HISTORY_LIMIT', '30')),
+  // Chờ khách nhắn xong (khách hay gửi nhiều tin liên tiếp: SĐT rồi địa chỉ) trước khi AI trả lời
+  replyWaitMs: Number(env('REPLY_WAIT_SECONDS', '8')) * 1000,
 };
