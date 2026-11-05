@@ -111,7 +111,7 @@ export function adminRoutes({ hub }) {
     const conv = must(store.get('conversations', req.params.id));
     const ch = hub.channels[conv.channel];
     if (!ch?.profileName) throw new Error('Kênh này không có tên hiển thị (web chat)');
-    const name = await ch.profileName(conv.externalId);
+    const name = await ch.profileName(conv.externalId, conv.pageId);
     if (!name) throw new Error(ch.lastProfileError?.() || 'Không lấy được tên từ nền tảng');
     return hub.setCustomerName(conv.id, name);
   }));

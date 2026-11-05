@@ -44,6 +44,7 @@ export function createFacebook(store) {
   const pending = new Map(); // state -> hết hạn
   const redirectUri = () => `${config.publicUrl}/webhooks/facebook/oauth`;
 
+  let lastProfileError = null;
   async function call(method, path, params = {}, body) {
     const q = new URLSearchParams(params);
     const res = await fetch(`${G()}/${path}${q.toString() ? `?${q}` : ''}`, {
@@ -129,14 +130,26 @@ export function createFacebook(store) {
       const token = tokenFor(conv?.pageId);
       if (token) await call('POST', 'me/messages', { access_token: token }, { recipient: { id: psid }, sender_action: 'typing_on' }).catch(() => {});
     },
+    // Tên Facebook của khách. User Profile API cần thêm tính năng "Business Asset User Profile Access";
+    // chưa có thì lấy tên từ danh sách người tham gia hội thoại của Trang (chỉ cần pages_messaging).
     async profileName(psid, pageId) {
+      const token = tokenFor(pageId);
+      const errors = [];
       try {
-        const data = await call('GET', psid, { fields: 'name', access_token: tokenFor(pageId) });
-        return data.name || null;
-      } catch (err) {
-        console.warn(`[facebook] không lấy được tên ${psid}:`, err.message);
-        return null;
-      }
+        const data = await call('GET', psid, { fields: 'name', access_token: token });
+        if (data.name) { lastProfileError = null; return data.name; }
+      } catch (err) { errors.push(err.message); }
+      try {
+        const page = pageId || (await call('GET', 'me', { fields: 'id', access_token: token })).id;
+        const data = await call('GET', `${page}/conversations`, { platform: 'messenger', user_id: psid, fields: 'participants', access_token: token });
+        const p = (data.data || []).flatMap((c) => c.participants?.data || []).find((x) => String(x.id) === String(psid));
+        if (p?.name) { lastProfileError = null; return p.name; }
+        errors.push('Hội thoại không có tên người gửi');
+      } catch (err) { errors.push(err.message); }
+      lastProfileError = errors.join(' | ');
+      console.warn(`[facebook] không lấy được tên ${psid}: ${lastProfileError}`);
+      return null;
     },
+    lastProfileError: () => lastProfileError,
   };
 }

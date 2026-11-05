@@ -53,3 +53,28 @@ test('Kết nối Facebook: đổi code lấy token dài hạn, đọc danh sác
     Object.assign(config.facebook, old);
   }
 });
+
+test('Tên Facebook: User Profile API bị chặn thì lấy tên từ người tham gia hội thoại của Trang', async () => {
+  const old = { ...config.facebook };
+  Object.assign(config.facebook, { pageToken: 'TOK' });
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async (url) => {
+    const u = new URL(url);
+    if (u.pathname.endsWith('/PSID1')) return { ok: false, status: 400, json: async () => ({ error: { code: 100, message: 'requires Business Asset User Profile Access' } }) };
+    if (u.pathname.endsWith('/P9/conversations')) {
+      assert.equal(u.searchParams.get('user_id'), 'PSID1');
+      return { ok: true, status: 200, json: async () => ({ data: [{ participants: { data: [{ id: 'PSID1', name: 'Helen Nguyen' }, { id: 'P9', name: 'EIV for Kids' }] } }] }) };
+    }
+    return { ok: false, status: 404, json: async () => ({}) };
+  };
+  try {
+    const fb = createFacebook(new Store(':memory:'));
+    assert.equal(await fb.profileName('PSID1', 'P9'), 'Helen Nguyen');
+    assert.equal(fb.lastProfileError(), null);
+    assert.equal(await fb.profileName('PSID2', 'P8'), null);
+    assert.ok(fb.lastProfileError());
+  } finally {
+    globalThis.fetch = realFetch;
+    Object.assign(config.facebook, old);
+  }
+});
