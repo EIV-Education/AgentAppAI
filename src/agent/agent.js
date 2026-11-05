@@ -26,6 +26,7 @@ ${COMMON_RULES}`,
 
 Nguyên tắc bắt buộc:
 1. KHÔNG báo học phí, báo giá hay con số chi phí trong khung chat, kể cả khi khách hỏi nhiều lần. Giải thích chi phí phụ thuộc nhu cầu và lộ trình riêng, rồi xin SĐT/Zalo để chuyên viên gửi báo giá phù hợp.
+   Ngoại lệ duy nhất: kịch bản riêng của Trang cho phép báo một mức giá cho đúng trường hợp đã ghi (VD học online) — khi đó báo đúng con số trong kịch bản, không thêm bớt, không suy ra giá cho trường hợp khác.
 2. Chỉ giới thiệu dịch vụ, chương trình, giáo viên, cam kết lấy từ kết quả công cụ (search_products, get_product, search_knowledge, get_shop_policy). Không tự thêm thông tin không có trong dữ liệu.
 3. Dùng kịch bản tư vấn bên dưới để biết cần tìm hiểu gì và dẫn dắt tới đâu; không hỏi lại điều khách đã nói.
 4. Ngay khi khách cho SĐT/Zalo, gọi create_lead với đầy đủ nhu cầu đã biết. Thông tin cần có cho chuyên viên: SĐT/Zalo, nhu cầu/mục đích, địa chỉ hoặc khu vực; với trường học/trung tâm (và doanh nghiệp) phải hỏi thêm tên trường/trung tâm/doanh nghiệp. Tên người liên hệ hệ thống tự lấy từ Zalo/Facebook — chỉ hỏi tên khi khách chat trên website — thiếu cái nào thì khéo hỏi thêm (không ép), rồi gọi create_lead lại với cùng SĐT để bổ sung.
@@ -76,6 +77,11 @@ export function buildSystem(store, conversation) {
   const exampleBlock = examples.length
     ? `Hội thoại mẫu đã học (học cách diễn đạt và dẫn dắt; KHÔNG chép số liệu, tên hay thông tin trong mẫu nếu công cụ không xác nhận):\n${examples.map((e) => `Khách: ${e.customer}\nTư vấn viên: ${e.reply}`).join('\n\n')}`
     : '';
+  // Kịch bản riêng theo Trang Facebook khách đang nhắn (VD EIV for Kids)
+  const pageText = conversation.pageId && s.pagePlaybooks?.[conversation.pageId];
+  const pageBlock = pageText
+    ? `Kịch bản riêng của Trang "${conversation.pageName || conversation.pageId}" — khách đang nhắn Trang này, ưu tiên hơn kịch bản chung khi khác nhau:\n${pageText}`
+    : '';
   const lessonBlock = lessons.length
     ? `Bài học chủ shop đã dạy (ưu tiên tuân theo):\n${lessons.map((l) => `- ${l.text}`).join('\n')}`
     : '';
@@ -83,7 +89,7 @@ export function buildSystem(store, conversation) {
   return [
     { type: 'text', text: `${RULES[mode]}\n\n${STYLE[style]}` },
     { type: 'text', text: [shopBlock, playbook, exampleBlock, lessonBlock].filter(Boolean).join('\n\n'), cache_control: { type: 'ephemeral' } },
-  ].concat({ type: 'text', text: `Kênh hiện tại: ${CHANNEL_NAMES[conversation.channel] || conversation.channel}${conversation.pageName ? ` — khách nhắn vào Trang "${conversation.pageName}" (gợi ý về nhu cầu của khách)` : ''}. Tên khách: ${conversation.customerName || 'chưa rõ'}.` });
+  ].concat(pageBlock ? { type: 'text', text: pageBlock } : [], { type: 'text', text: `Kênh hiện tại: ${CHANNEL_NAMES[conversation.channel] || conversation.channel}${conversation.pageName ? ` — khách nhắn vào Trang "${conversation.pageName}" (gợi ý về nhu cầu của khách)` : ''}. Tên khách: ${conversation.customerName || 'chưa rõ'}.` });
 }
 
 // Chuyển lịch sử tin nhắn thành messages cho API: khách = user, bot/chủ shop = assistant.

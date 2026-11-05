@@ -438,7 +438,8 @@ async function loadSettings() {
   ].join('') || '<p class="muted small">Chưa có ai. Dùng Zalo cá nhân nhắn /baocao cho OA, rồi tải lại trang này để cấp quyền.</p>';
   $('#fbConnect').href = `/api/admin/facebook/connect?token=${encodeURIComponent(TOKEN)}`;
   const fbPages = await api('/facebook/pages');
-  $('#fbPages').innerHTML = fbPages.map((p) => `<div class="row" style="margin:4px 0"><label class="small"><input type="checkbox" data-fbpage="${esc(p.id)}" ${p.enabled ? 'checked' : ''}> <b>${esc(p.name)}</b></label>${p.canMessage === false ? '<span class="tag">không có quyền nhắn tin</span>' : ''}<span class="muted small">${p.enabled ? '✅ trợ lý đang trực' : 'đang tắt'}</span></div>`).join('')
+  pageScripts = (await api('/settings')).pagePlaybooks || {};
+  $('#fbPages').innerHTML = fbPages.map((p) => `<div class="row" style="margin:4px 0"><label class="small"><input type="checkbox" data-fbpage="${esc(p.id)}" ${p.enabled ? 'checked' : ''}> <b>${esc(p.name)}</b></label>${p.canMessage === false ? '<span class="tag">không có quyền nhắn tin</span>' : ''}<span class="muted small">${p.enabled ? '✅ trợ lý đang trực' : 'đang tắt'}</span><button data-fbscript="${esc(p.id)}" data-name="${esc(p.name)}">📝 Kịch bản riêng${pageScripts[p.id] ? ' ✅' : ''}</button></div>`).join('')
     || '<p class="muted small">Chưa kết nối. Bấm nút trên để đọc danh sách Trang.</p>';
   $('#zaloConnect').href = `/api/admin/zalo/connect?token=${encodeURIComponent(TOKEN)}`;
   $('#embedCode').textContent = `<script src="${location.origin}/widget.js" defer></script>`;
@@ -469,6 +470,19 @@ async function loadCrmFields(crm) {
   });
 }
 $('#crmLoad').onclick = run(async () => { $('#crmMap').innerHTML = '<p class="muted small">Đang đọc cột…</p>'; await loadCrmFields((await api('/settings')).crm); });
+let pageScripts = {};
+$('#fbPages').onclick = (e) => {
+  const b = e.target.closest('[data-fbscript]');
+  if (!b) return;
+  const id = b.dataset.fbscript;
+  const tpl = (window.PAGE_SCRIPT_TEMPLATES || []).find((t) => t.match.test(b.dataset.name));
+  const value = pageScripts[id] ?? tpl?.text ?? '';
+  dialog(`Kịch bản riêng – ${b.dataset.name}`, [['text', `Chỉ áp dụng khi khách nhắn Trang này, ưu tiên hơn kịch bản chung. Để trống = dùng kịch bản chung.${!pageScripts[id] && tpl ? ' (Em đã điền sẵn kịch bản gợi ý, anh xem lại rồi bấm Lưu.)' : ''}`, 'textarea', value, 18]], run(async (v) => {
+    await api('/settings', { method: 'PUT', body: { pagePlaybooks: { [id]: v.text.trim() } } });
+    toast(v.text.trim() ? '✅ Đã lưu kịch bản riêng cho Trang' : 'Trang này dùng kịch bản chung');
+    loadSettings();
+  }));
+};
 $('#fbPages').onchange = run(async (e) => {
   const id = e.target.dataset.fbpage;
   if (!id) return;
@@ -520,8 +534,8 @@ $('#cmdForm').onsubmit = run(async (e) => {
 // ---------- hộp thoại dùng chung ----------
 function dialog(title, fields, onOk) {
   const form = $('#dlgForm');
-  form.innerHTML = `<h3>${esc(title)}</h3>${fields.map(([name, label, type, value]) => `<label>${esc(label)}${type === 'textarea'
-    ? `<textarea name="${name}" rows="3">${esc(value ?? '')}</textarea>`
+  form.innerHTML = `<h3>${esc(title)}</h3>${fields.map(([name, label, type, value, rows = 3]) => `<label>${esc(label)}${type === 'textarea'
+    ? `<textarea name="${name}" rows="${rows}">${esc(value ?? '')}</textarea>`
     : `<input name="${name}" type="${type}" value="${esc(value ?? '')}">`}</label>`).join('')}
     <div class="row"><button value="cancel" formnovalidate>Huỷ</button><button class="primary" value="ok">Lưu</button></div>`;
   const dlg = $('#dlg');

@@ -219,3 +219,14 @@ test('câu trả lời lộ token điều khiển và tự viết lượt của 
   assert.ok(!sent.some((m) => m.text.includes('ctrl99')));
   assert.equal(store.all('conversations')[0].needsHuman, true);
 });
+
+test('kịch bản riêng theo Trang: chỉ đưa vào khi khách nhắn đúng Trang, cho phép báo giá online', async () => {
+  const { hub, llm, store } = eivHub([text('Dạ chào anh chị'), text('Dạ chào chị')]);
+  store.updateSettings({ pagePlaybooks: { P_KIDS: 'Học online: học phí 500k đến 700k/giờ' } });
+  await hub.receive({ channel: 'facebook', externalId: 'k1', text: 'hi', pageId: 'P_KIDS', pageName: 'EIV for Kids - Tiếng Anh cho bé' });
+  await hub.receive({ channel: 'facebook', externalId: 'k2', text: 'hi', pageId: 'P_OTHER', pageName: 'EIV Education - Đào Tạo Tiếng Anh Cho Doanh Nghiệp' });
+  const sys = (i) => llm.calls[i].system.map((b) => b.text).join('\n');
+  assert.match(sys(0), /Kịch bản riêng của Trang "EIV for Kids - Tiếng Anh cho bé"[\s\S]*500k đến 700k/);
+  assert.match(sys(0), /Ngoại lệ duy nhất/);
+  assert.doesNotMatch(sys(1), /500k/);
+});

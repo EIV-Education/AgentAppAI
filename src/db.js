@@ -51,6 +51,7 @@ export function defaultSettings() {
     // Đẩy khách tiềm năng lên CRM Lark Base
     crm: { enabled: false, baseUrl: '', fieldMap: {} },
     zaloOwnerIds: [], // ID Zalo được điều khiển trợ lý (ngoài ZALO_OWNER_IDS trong .env)
+    pagePlaybooks: {}, // kịch bản riêng theo Trang Facebook: { pageId: 'nội dung' }
     notifyOnNewOrder: true,
     notifyOnNewLead: true,
     notifyOnEscalation: true,
